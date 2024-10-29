@@ -1,13 +1,16 @@
 import pytest
 import torch
+import json
+from typing import Tuple
 from anydoor_original.attention import SpatialTransformer
 from src.anydoor_refiners.attention import CrossAttentionBlock2d
-from refiners.conversion.model_converter import ModelConverter
+
+from utils.weight_mapper import get_converted_state_dict
 
 
 # Fixture to set up and return both models with the specified configuration
 @pytest.fixture
-def setup_models():
+def setup_models() -> Tuple[SpatialTransformer, CrossAttentionBlock2d]:
     # Define model configuration parameters with descriptive names
     input_channels = 320  # Number of input channels for the model
     num_heads = 5  # Number of attention heads
@@ -60,25 +63,31 @@ def test_parameter_count_match(setup_models):
 def test_model_output_similarity(setup_models):
     spatial_transformer, cross_attention_block = setup_models
 
+    # Convert the source model's state dict to match the target model's structure
+    with open("tests/weights_mapping/cross_attention_block_2d.json", "r") as f:
+        weight_mapping = json.load(f)
+    converted_state_dict = get_converted_state_dict(
+        source_state_dict=spatial_transformer.state_dict(),
+        target_state_dict=cross_attention_block.state_dict(),
+        mapping=weight_mapping,
+    )
+    cross_attention_block.load_state_dict(converted_state_dict)
+
     # Define input tensors
     input_channels = 320  # Must match the model's input channel configuration
     context_dim = 1024  # Must match the model's context dimension configuration
     input_tensor = torch.randn(1, input_channels, 32, 32)  # Example input tensor
     context_tensor = torch.randn(1, 1, context_dim)  # Example context tensor
 
-    # Set the context for the CrossAttentionBlock2d model
-    cross_attention_block.set_context("cross_attention_block", {"key": context_tensor})
-
-    # Initialize a ModelConverter to handle the conversion and comparison of outputs
-    converter = ModelConverter(
-        source_model=spatial_transformer,
-        target_model=cross_attention_block,
-        threshold=0.001,  # Threshold for similarity comparison
-    )
-
-    # Run the converter and assert similarity within the threshold
     with torch.no_grad():
-        assert converter.run(
-            source_args={"x": input_tensor, "context": context_tensor},
-            target_args=(input_tensor,),
+        # Set the context for the CrossAttentionBlock2d model
+        cross_attention_block.set_context(
+            "cross_attention_block", {"key": context_tensor}
+        )
+        # Forward pass through both models
+        y_target = cross_attention_block.forward(input_tensor)
+        y_source = spatial_transformer.forward(input_tensor, context=context_tensor)
+        # Assert that the model outputs are similar within a specified threshold
+        assert torch.allclose(
+            y_source, y_target, atol=1e-6
         ), "Model outputs are not similar within the threshold"

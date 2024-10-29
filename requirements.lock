@@ -10,6 +10,8 @@
 #   universal: false
 
 -e file:.
+antlr4-python3-runtime==4.9.3
+    # via omegaconf
 appnope==0.1.4
     # via ipykernel
 asttokens==2.4.1
@@ -87,6 +89,8 @@ numpy==2.1.2
     # via refiners
     # via torchvision
     # via transformers
+omegaconf==2.3.0
+    # via anydoor-refiners
 packaging==24.1
     # via huggingface-hub
     # via ipykernel
@@ -121,6 +125,7 @@ python-dateutil==2.9.0.post0
     # via jupyter-client
 pyyaml==6.0.2
     # via huggingface-hub
+    # via omegaconf
     # via transformers
 pyzmq==26.2.0
     # via ipykernel
