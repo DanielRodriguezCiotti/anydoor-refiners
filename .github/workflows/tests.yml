@@ -32,14 +32,11 @@ jobs:
       - name: Install Rye
         run: |
           curl -sSf https://rye.astral.sh/get | RYE_VERSION="0.42.0" RYE_INSTALL_OPTION="--yes" bash
-          echo "${HOME}/.rye/bin" >> $GITHUB_PATH  # Add Rye to PATH
-          # Verify that Rye was installed correctly
-          rye --version
 
       # Step 5: Install Dependencies using Rye
       - name: Install Dependencies
         run: |
-          rye --version  # Check if Rye is available
+          source "$HOME/.rye/env"
           rye sync
 
       # Step 6: Activate the virtual environment and run pytest
