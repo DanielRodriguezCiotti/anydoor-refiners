@@ -18,11 +18,28 @@ jobs:
       # Step 1: Check out the code
       - uses: actions/checkout@v3
 
-      # Step 2: Install dependencies using the build.yml workflow
-      - name: Install Dependencies
-        uses: ./.github/workflows/actions/install_dependencies/build.yml
+      # Step 2: Read Python version from .python-version file
+      - name: Read Python Version
+        id: python_version
+        run: echo "VERSION=$(cat .python-version)" >> $GITHUB_ENV
 
-      # Step 3: Activate the virtual environment and run pytest
+      # Step 3: Set up Python with the version from .python-version
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.VERSION }}
+
+      # Step 4: Install Rye
+      - name: Install Rye
+        run: |
+          curl -sSf https://rye.astral.sh/get | RYE_VERSION="0.42.0" RYE_INSTALL_OPTION="--yes" bash
+
+      # Step 5: Install Dependencies using Rye
+      - name: Install Dependencies
+        run: |
+          source "$HOME/.rye/env"
+          rye sync
+
+      # Step 6: Activate the virtual environment and run pytest
       - name: Run Pytest
         run: |
           . .venv/bin/activate  # Activate the virtual environment
