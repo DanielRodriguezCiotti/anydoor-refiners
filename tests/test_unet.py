@@ -3,12 +3,12 @@ import torch
 import json
 from typing import Tuple
 from src.anydoor_original.unet import UNetModel
-from src.anydoor_refiners.unet import SD1UNet
+from src.anydoor_refiners.unet import AnyDoorUNet
 from utils.weight_mapper import get_converted_state_dict
 
 
 @pytest.fixture
-def setup_models() -> Tuple[UNetModel, SD1UNet]:
+def setup_models() -> Tuple[UNetModel, AnyDoorUNet]:
     """
     Sets up and returns both UNetModel and SD1UNet instances with predefined configurations.
 
@@ -50,7 +50,7 @@ def setup_models() -> Tuple[UNetModel, SD1UNet]:
     )
 
     # Define SD1UNet
-    refiners_unet = SD1UNet(in_channels=4)
+    refiners_unet = AnyDoorUNet(in_channels=4)
 
     return unet, refiners_unet
 
@@ -103,17 +103,15 @@ def test_model_output_similarity(setup_models, load_weight_mapping):
     # Define inputs for testing
     x = torch.randn(1, 4, 32, 32)
     timestep = torch.full((1,), 1, dtype=torch.long)
-    timestep_embedding = torch.randn(1, 1, 1024)
+    object_embedding = torch.randn(1, 2, 1024)
 
     with torch.no_grad():
         # Set contexts for SD1UNet model
-        refiners_unet.set_context("diffusion", {"timestep": timestep})
-        refiners_unet.set_context(
-            "cross_attention_block", {"dinov2_garment_embedding": timestep_embedding}
-        )
+        refiners_unet.set_timestep(timestep)
+        refiners_unet.set_dinov2_object_embedding(object_embedding)
 
         # Forward pass on both models
-        y1 = unet.forward(x, timestep, timestep_embedding)
+        y1 = unet.forward(x, timestep, object_embedding)
         y2 = refiners_unet.forward(x)
 
         # Check similarity within a specified tolerance
