@@ -1,0 +1,18 @@
+{
+    "Chain_1.GroupNorm": "norm",
+    "Chain_1.Linear": "proj_in",
+    "Chain_2.CrossAttentionBlock.Residual_1.SelfAttention.Linear": "transformer_blocks.0.attn1.to_out.0",
+    "Chain_2.CrossAttentionBlock.Residual_2.Attention.Linear": "transformer_blocks.0.attn2.to_out.0",
+    "Chain_3.Linear": "proj_out",
+    "Chain_2.CrossAttentionBlock.Residual_1.LayerNorm": "transformer_blocks.0.norm1",
+    "Chain_2.CrossAttentionBlock.Residual_2.LayerNorm": "transformer_blocks.0.norm2",
+    "Chain_2.CrossAttentionBlock.Residual_3.LayerNorm": "transformer_blocks.0.norm3",
+    "Chain_2.CrossAttentionBlock.Residual_1.SelfAttention.Distribute.Linear_1": "transformer_blocks.0.attn1.to_q",
+    "Chain_2.CrossAttentionBlock.Residual_1.SelfAttention.Distribute.Linear_2": "transformer_blocks.0.attn1.to_k",
+    "Chain_2.CrossAttentionBlock.Residual_1.SelfAttention.Distribute.Linear_3": "transformer_blocks.0.attn1.to_v",
+    "Chain_2.CrossAttentionBlock.Residual_2.Attention.Distribute.Linear_1": "transformer_blocks.0.attn2.to_q",
+    "Chain_2.CrossAttentionBlock.Residual_2.Attention.Distribute.Linear_2": "transformer_blocks.0.attn2.to_k",
+    "Chain_2.CrossAttentionBlock.Residual_2.Attention.Distribute.Linear_3": "transformer_blocks.0.attn2.to_v",
+    "Chain_2.CrossAttentionBlock.Residual_3.Linear_1": "transformer_blocks.0.ff.net.0.proj",
+    "Chain_2.CrossAttentionBlock.Residual_3.Linear_2": "transformer_blocks.0.ff.net.2"
+}
