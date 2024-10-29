@@ -1,38 +1,23 @@
-name: "Install Dependencies with Rye"
-description: "Action to build the project dependencies using Rye and the Python version specified in .python-version"
+name: "Install Dependencies Action"
+description: "Action to install dependencies using Rye"
+runs:
+  using: "composite"
+  steps:
+    - name: Check out code
+      uses: actions/checkout@v3
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    - name: Read Python Version
+      run: echo "VERSION=$(cat .python-version)" >> $GITHUB_ENV
 
-jobs:
-  install-dependencies:
-    runs-on: ubuntu-latest
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.VERSION }}
 
-    steps:
-      # Step 1: Check out the code
-      - uses: actions/checkout@v3
+    - name: Install Rye
+      run: |
+        curl -sSf https://rye.astral.sh/get | bash
+        echo "${HOME}/.rye/bin" >> $GITHUB_PATH
 
-      # Step 2: Read Python version from .python-version file
-      - name: Read Python Version
-        id: python_version
-        run: echo "VERSION=$(cat .python-version)" >> $GITHUB_ENV
-
-      # Step 3: Set up Python with the version from .python-version
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.VERSION }}
-
-      # Step 4: Install Rye
-      - name: Install Rye
-        run: |
-          curl -sSf https://rye.astral.sh/get | bash
-          echo "${HOME}/.rye/bin" >> $GITHUB_PATH  # Add Rye to PATH
-
-      # Step 5: Install Dependencies using Rye
-      - name: Install Dependencies
-        run: rye sync
+    - name: Install Dependencies
+      run: rye sync
