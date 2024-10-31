@@ -2,13 +2,17 @@ import pytest
 import torch
 import json
 from typing import Tuple
-from src.anydoor_original.unet import UNetModel
-from src.anydoor_refiners.unet import AnyDoorUNet
+from src.anydoor_original.controlled_unet import (
+    ControlledUnetModel as AnyDoorControlledUnet,
+)
+from src.anydoor_refiners.controlled_unet import (
+    ControlledUNet as RefinersControlledUnet,
+)
 from utils.weight_mapper import get_converted_state_dict
 
 
 @pytest.fixture
-def setup_models() -> Tuple[UNetModel, AnyDoorUNet]:
+def setup_models() -> Tuple[AnyDoorControlledUnet, RefinersControlledUnet]:
     """
     Sets up and returns both UNetModel and SD1UNet instances with predefined configurations.
 
@@ -18,7 +22,7 @@ def setup_models() -> Tuple[UNetModel, AnyDoorUNet]:
         Tuple containing initialized UNetModel and SD1UNet models.
     """
     # Define UNetModel
-    unet = UNetModel(
+    unet = AnyDoorControlledUnet(
         image_size=32,
         in_channels=4,
         model_channels=320,
@@ -50,7 +54,7 @@ def setup_models() -> Tuple[UNetModel, AnyDoorUNet]:
     )
 
     # Define SD1UNet
-    refiners_unet = AnyDoorUNet(in_channels=4)
+    refiners_unet = RefinersControlledUnet(in_channels=4)
 
     return unet, refiners_unet
 
@@ -69,6 +73,34 @@ def load_weight_mapping():
         return json.load(f)
 
 
+@pytest.fixture
+def control_shapes():
+    """
+    Returns the shapes of the control tensors for each layer in the ControlledUNet model.
+
+    Returns:
+    --------
+    List[List[int]]
+        List containing the shapes of the control tensors for each layer in the ControlledUNet model.
+
+    """
+    return [
+        [1, 320, 32, 32],
+        [1, 320, 32, 32],
+        [1, 320, 32, 32],
+        [1, 320, 16, 16],
+        [1, 640, 16, 16],
+        [1, 640, 16, 16],
+        [1, 640, 8, 8],
+        [1, 1280, 8, 8],
+        [1, 1280, 8, 8],
+        [1, 1280, 4, 4],
+        [1, 1280, 4, 4],
+        [1, 1280, 4, 4],
+        [1, 1280, 4, 4],
+    ]
+
+
 def test_parameter_count_match(setup_models):
     """
     Tests if both UNetModel and SD1UNet models have the same number of trainable parameters.
@@ -83,18 +115,18 @@ def test_parameter_count_match(setup_models):
     ), "Trainable parameter counts do not match"
 
 
-def test_model_output_similarity(setup_models, load_weight_mapping):
+def test_model_output_similarity(setup_models, load_weight_mapping, control_shapes):
     """
     Tests that UNetModel and SD1UNet produce similar outputs within a threshold after weight alignment.
 
     Converts UNetModel's state dictionary to match SD1UNet's structure and then verifies the output similarity.
     """
-    unet, refiners_unet = setup_models
+    anydoor_unet, refiners_unet = setup_models
     weight_mapping = load_weight_mapping
 
     # Convert source state_dict to match target model's structure
     converted_state_dict = get_converted_state_dict(
-        source_state_dict=unet.state_dict(),
+        source_state_dict=anydoor_unet.state_dict(),
         target_state_dict=refiners_unet.state_dict(),
         mapping=weight_mapping,
     )
@@ -103,16 +135,17 @@ def test_model_output_similarity(setup_models, load_weight_mapping):
     # Define inputs for testing
     x = torch.randn(1, 4, 32, 32)
     timestep = torch.full((1,), 1, dtype=torch.long)
-    object_embedding = torch.randn(1, 2, 1024)
+    object_embedding = torch.randn(1, 1, 1024)
+    control = [torch.randn(*shape) for shape in control_shapes]
 
     with torch.no_grad():
         # Set contexts for SD1UNet model
         refiners_unet.set_timestep(timestep)
         refiners_unet.set_dinov2_object_embedding(object_embedding)
-
+        refiners_unet.set_control_residuals(control)
         # Forward pass on both models
-        y1 = unet.forward(x, timestep, object_embedding)
-        y2 = refiners_unet.forward(x)
+        y1 = refiners_unet.forward(x)
+        y2 = anydoor_unet.forward(x, timestep, object_embedding, control.copy())
 
         # Check similarity within a specified tolerance
         assert torch.allclose(

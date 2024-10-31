@@ -32,37 +32,7 @@ class TimestepEncoder(fl.Passthrough):
         )
 
 
-image_size = (32,)  # unused, but included for completeness
-in_channels = (4,)
-model_channels = (320,)
-out_channels = (4,)
-num_res_blocks = (2,)
-attention_resolutions = ([4, 2, 1],)
-dropout = (0,)
-channel_mult = ([1, 2, 4, 4],)
-conv_resample = (True,)
-dims = (2,)
-num_classes = (None,)
-use_checkpoint = (True,)
-use_fp16 = (False,)
-num_heads = (-1,)
-num_head_channels = (64,)
-num_heads_upsample = (-1,)
-use_scale_shift_norm = (False,)
-resblock_updown = (False,)
-use_new_attention_order = (False,)
-use_spatial_transformer = (True,)
-transformer_depth = (1,)
-context_dim = (1024,)
-n_embed = (None,)
-legacy = (False,)
-disable_self_attentions = (None,)
-num_attention_blocks = (None,)
-disable_middle_self_attn = (False,)
-use_linear_in_transformer = True
-
-
-class CLIPLCrossAttention(CrossAttentionBlock2d):
+class DinoV2CrossAttention(CrossAttentionBlock2d):
     def __init__(
         self,
         channels: int,
@@ -73,7 +43,7 @@ class CLIPLCrossAttention(CrossAttentionBlock2d):
         super().__init__(
             channels=channels,
             context_embedding_dim=1024,
-            context_key="dinov2_garment_embedding",
+            context_key="dinov2_object_embedding",
             num_attention_heads=nb_heads,
             num_attention_layers=1,
             num_groups=32,
@@ -107,7 +77,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=320, out_channels=320, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=320, nb_heads=5, device=device, dtype=dtype
                 ),
             ),
@@ -115,7 +85,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=320, out_channels=320, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=320, nb_heads=5, device=device, dtype=dtype
                 ),
             ),
@@ -128,7 +98,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=320, out_channels=640, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=640, nb_heads=10, device=device, dtype=dtype
                 ),
             ),
@@ -136,7 +106,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=640, out_channels=640, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=640, nb_heads=10, device=device, dtype=dtype
                 ),
             ),
@@ -149,7 +119,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=640, out_channels=1280, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=1280, nb_heads=20, device=device, dtype=dtype
                 ),
             ),
@@ -157,7 +127,7 @@ class DownBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=1280, out_channels=1280, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=1280, nb_heads=20, device=device, dtype=dtype
                 ),
             ),
@@ -206,7 +176,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=2560, out_channels=1280, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=1280, nb_heads=20, device=device, dtype=dtype
                 ),
             ),
@@ -214,7 +184,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=2560, out_channels=1280, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=1280, nb_heads=20, device=device, dtype=dtype
                 ),
             ),
@@ -222,7 +192,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=1920, out_channels=1280, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=1280, nb_heads=20, device=device, dtype=dtype
                 ),
                 fl.Upsample(channels=1280, device=device, dtype=dtype),
@@ -231,7 +201,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=1920, out_channels=640, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=640, nb_heads=10, device=device, dtype=dtype
                 ),
             ),
@@ -239,7 +209,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=1280, out_channels=640, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=640, nb_heads=10, device=device, dtype=dtype
                 ),
             ),
@@ -247,7 +217,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=960, out_channels=640, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=640, nb_heads=10, device=device, dtype=dtype
                 ),
                 fl.Upsample(channels=640, device=device, dtype=dtype),
@@ -256,7 +226,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=960, out_channels=320, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=320, nb_heads=5, device=device, dtype=dtype
                 ),
             ),
@@ -264,7 +234,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=640, out_channels=320, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=320, nb_heads=5, device=device, dtype=dtype
                 ),
             ),
@@ -272,7 +242,7 @@ class UpBlocks(fl.Chain):
                 ResidualBlock(
                     in_channels=640, out_channels=320, device=device, dtype=dtype
                 ),
-                CLIPLCrossAttention(
+                DinoV2CrossAttention(
                     channels=320, nb_heads=5, device=device, dtype=dtype
                 ),
             ),
@@ -287,15 +257,17 @@ class MiddleBlock(fl.Chain):
             ResidualBlock(
                 in_channels=1280, out_channels=1280, device=device, dtype=dtype
             ),
-            CLIPLCrossAttention(channels=1280, nb_heads=20, device=device, dtype=dtype),
+            DinoV2CrossAttention(
+                channels=1280, nb_heads=20, device=device, dtype=dtype
+            ),
             ResidualBlock(
                 in_channels=1280, out_channels=1280, device=device, dtype=dtype
             ),
         )
 
 
-class SD1UNet(fl.Chain):
-    """Stable Diffusion 1.5 U-Net.
+class AnyDoorUNet(fl.Chain):
+    """Inspired from Stable Diffusion 1.5 U-Net.
 
     See [[arXiv:2112.10752] High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) for more details.
     """
@@ -359,17 +331,18 @@ class SD1UNet(fl.Chain):
             "sampling": {"shapes": []},
         }
 
-    def set_clip_text_embedding(self, clip_text_embedding: Tensor) -> None:
+    def set_dinov2_object_embedding(self, dinov2_object_embedding: Tensor) -> None:
         """Set the CLIP text embedding.
 
         Note:
-            This context is required by the `CLIPLCrossAttention` blocks.
+            This context is required by the `DinoV2CrossAttention` blocks.
 
         Args:
-            clip_text_embedding: The CLIP text embedding.
+            dinov2_object_embedding: The DinoV2 garment embedding.
         """
         self.set_context(
-            "cross_attention_block", {"clip_text_embedding": clip_text_embedding}
+            "cross_attention_block",
+            {"dinov2_object_embedding": dinov2_object_embedding},
         )
 
     def set_timestep(self, timestep: Tensor) -> None:
