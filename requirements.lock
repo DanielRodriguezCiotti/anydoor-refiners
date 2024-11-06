@@ -10,12 +10,20 @@
 #   universal: false
 
 -e file:.
+aiohappyeyeballs==2.4.3
+    # via aiohttp
+aiohttp==3.10.10
+    # via fsspec
+aiosignal==1.3.1
+    # via aiohttp
 antlr4-python3-runtime==4.9.3
     # via omegaconf
 appnope==0.1.4
     # via ipykernel
 asttokens==2.4.1
     # via stack-data
+attrs==24.2.0
+    # via aiohttp
 certifi==2024.8.30
     # via requests
 charset-normalizer==3.4.0
@@ -38,8 +46,12 @@ filelock==3.16.1
     # via huggingface-hub
     # via torch
     # via transformers
+frozenlist==1.5.0
+    # via aiohttp
+    # via aiosignal
 fsspec==2024.10.0
     # via huggingface-hub
+    # via pytorch-lightning
     # via torch
 huggingface-hub==0.26.1
     # via diffusers
@@ -48,6 +60,7 @@ huggingface-hub==0.26.1
     # via transformers
 idna==3.10
     # via requests
+    # via yarl
 importlib-metadata==8.5.0
     # via diffusers
 iniconfig==2.0.0
@@ -73,6 +86,9 @@ jupyter-core==5.7.2
     # via jupyter-client
 jupyterlab-widgets==3.0.13
     # via ipywidgets
+lightning-utilities==0.11.8
+    # via pytorch-lightning
+    # via torchmetrics
 markupsafe==3.0.2
     # via jinja2
 matplotlib-inline==0.1.7
@@ -80,22 +96,32 @@ matplotlib-inline==0.1.7
     # via ipython
 mpmath==1.3.0
     # via sympy
+multidict==6.1.0
+    # via aiohttp
+    # via yarl
 nest-asyncio==1.6.0
     # via ipykernel
 networkx==3.4.2
     # via torch
 numpy==2.1.2
     # via diffusers
+    # via opencv-python
     # via refiners
+    # via torchmetrics
     # via torchvision
     # via transformers
 omegaconf==2.3.0
     # via anydoor-refiners
+opencv-python==4.10.0.84
+    # via anydoor-refiners
 packaging==24.1
     # via huggingface-hub
     # via ipykernel
+    # via lightning-utilities
     # via pytest
+    # via pytorch-lightning
     # via refiners
+    # via torchmetrics
     # via transformers
 parso==0.8.4
     # via jedi
@@ -111,6 +137,8 @@ pluggy==1.5.0
     # via pytest
 prompt-toolkit==3.0.48
     # via ipython
+propcache==0.2.0
+    # via yarl
 psutil==6.1.0
     # via ipykernel
 ptyprocess==0.7.0
@@ -123,9 +151,12 @@ pytest==8.3.3
     # via anydoor-refiners
 python-dateutil==2.9.0.post0
     # via jupyter-client
+pytorch-lightning==2.4.0
+    # via anydoor-refiners
 pyyaml==6.0.2
     # via huggingface-hub
     # via omegaconf
+    # via pytorch-lightning
     # via transformers
 pyzmq==26.2.0
     # via ipykernel
@@ -141,11 +172,14 @@ requests==2.32.3
     # via refiners
     # via transformers
 safetensors==0.4.5
+    # via anydoor-refiners
     # via diffusers
     # via refiners
     # via transformers
 segment-anything-py==1.0.1
     # via refiners
+setuptools==75.3.0
+    # via lightning-utilities
 six==1.16.0
     # via asttokens
     # via python-dateutil
@@ -156,9 +190,13 @@ sympy==1.13.1
 tokenizers==0.20.1
     # via transformers
 torch==2.5.0
+    # via pytorch-lightning
     # via refiners
     # via segment-anything-py
+    # via torchmetrics
     # via torchvision
+torchmetrics==1.4.3
+    # via pytorch-lightning
 torchvision==0.20.0
     # via segment-anything-py
 tornado==6.4.1
@@ -167,6 +205,7 @@ tornado==6.4.1
 tqdm==4.66.5
     # via anydoor-refiners
     # via huggingface-hub
+    # via pytorch-lightning
     # via refiners
     # via transformers
 traitlets==5.14.3
@@ -184,6 +223,8 @@ typeguard==2.13.3
 typing-extensions==4.12.2
     # via huggingface-hub
     # via ipython
+    # via lightning-utilities
+    # via pytorch-lightning
     # via torch
 urllib3==2.2.3
     # via requests
@@ -191,5 +232,7 @@ wcwidth==0.2.13
     # via prompt-toolkit
 widgetsnbextension==4.0.13
     # via ipywidgets
+yarl==1.17.0
+    # via aiohttp
 zipp==3.20.2
     # via importlib-metadata
