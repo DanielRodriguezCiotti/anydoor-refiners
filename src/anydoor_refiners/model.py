@@ -47,10 +47,10 @@ solver_params = SolverParams(
 class AnyDoor(fl.Module):
     def __init__(
         self,
-        unet: UNet = UNet(4),
-        lda: LatentDiffusionAutoencoder = AnydoorAutoencoder(),
-        object_encoder: fl.Module = DINOv2Encoder(),
-        control_model: fl.Module = ControlNet(4),
+        unet: UNet, # = UNet(4),
+        lda: LatentDiffusionAutoencoder, # = AnydoorAutoencoder(),
+        object_encoder: fl.Module, # = DINOv2Encoder(),
+        control_model: ControlNet, # = ControlNet(4),
         solver: Solver = DDIM(num_inference_steps=50, params=solver_params),
         device: Device | str = "cpu",
         dtype: DType = torch.float32,
@@ -179,25 +179,33 @@ class AnyDoor(fl.Module):
         self,
         x: Tensor,
         step: int,
-        conditionning: AnyDoorConditionnig,
+        control_background_image : Tensor,
+        object_embedding : Tensor,
+        negative_object_embedding : Tensor | None = None,
         condition_scale: float = 1.0,
     ) -> Tensor:
-
-        timestep = self.solver.timesteps[step].unsqueeze(dim=0)
+        # Init variables
         latents = x
-        # scale latents for solvers that need it
-        latents = self.solver.scale_model_input(latents, step=step)
+        timestep = self.solver.timesteps[step].unsqueeze(dim=0)
+        latents = self.solver.scale_model_input(latents, step=step) # Returns latents for DDIM
+        
+        # Compute control
+        self.control_model.set_timestep(timestep=timestep)
+        self.control_model.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding)
+        control = self.control_model(control_background_image)
+
+        # Compute predicted noise
         self.set_unet_context(
             timestep=timestep,
-            object_embedding=conditionning.object_embedding,
-            control_features=conditionning.control_features,
+            object_embedding=object_embedding,
+            control_features=control,
         )
         predicted_noise = self.unet(latents)
-        if condition_scale != 1.0:
+        if condition_scale != 1.0 and negative_object_embedding is not None:
             self.set_unet_context(
                 timestep=timestep,
-                object_embedding=conditionning.negative_object_embedding,
-                control_features=conditionning.control_features,
+                object_embedding=negative_object_embedding,
+                control_features=control
             )
             unconditionned_predicted_noise = self.unet(latents)
             predicted_noise = unconditionned_predicted_noise + condition_scale * (
@@ -212,7 +220,7 @@ class AnyDoor(fl.Module):
         """ """
         return self.object_encoder(image)
 
-    def compute_control_features(self, image: Tensor) -> list[Tensor]:
+    def compute_control_features(self, image: Tensor, object) -> list[Tensor]:
         """ """
         return self.control_model(image)
 
