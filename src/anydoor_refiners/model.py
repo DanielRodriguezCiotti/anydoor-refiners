@@ -43,6 +43,7 @@ solver_params = SolverParams(
     final_diffusion_rate=0.0120,
 )
 
+devices = ["cuda:0", "cuda:1", "cuda:2", "cuda:3"]
 
 class AnyDoor(fl.Module):
     def __init__(
@@ -66,6 +67,9 @@ class AnyDoor(fl.Module):
         self.object_encoder = object_encoder.to(device=self.device, dtype=self.dtype)
         self.control_model = control_model.to(device=self.device, dtype=self.dtype)
         # self.log_solver_elements()
+
+    def change_tensor_to_device(self, tensor: Tensor, model : ControlNet | Solver | UNet) -> Tensor:
+        return tensor.to(device=model.device, dtype=model.dtype)
 
     def log_solver_elements(self):
         timesteps = self.solver.timesteps
@@ -185,36 +189,43 @@ class AnyDoor(fl.Module):
         condition_scale: float = 1.0,
     ) -> Tensor:
         # Init variables
-        latents = x
-        timestep = self.solver.timesteps[step].unsqueeze(dim=0)
+        latents = x.to(device=devices[0])
+        timestep = self.solver.timesteps[step].unsqueeze(dim=0).to(device=devices[0])
         latents = self.solver.scale_model_input(latents, step=step) # Returns latents for DDIM
         
         # Compute control
+        self.control_model.to(device=devices[0])
         self.control_model.set_timestep(timestep=timestep)
-        self.control_model.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding)
-        control = self.control_model(control_background_image)
+        self.control_model.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding.to(device=devices[0]))
+        control = self.control_model(control_background_image.to(device=devices[0]))
+        self.control_model.to(device="cpu")
 
         # Compute predicted noise
         self.set_unet_context(
             timestep=timestep,
-            object_embedding=object_embedding,
+            object_embedding=object_embedding.to(device=devices[0]),
             control_features=control,
         )
+        self.unet.to(device=devices[0])
         predicted_noise = self.unet(latents)
         if condition_scale != 1.0 and negative_object_embedding is not None:
             self.set_unet_context(
                 timestep=timestep,
-                object_embedding=negative_object_embedding,
+                object_embedding=negative_object_embedding.to(device=devices[0]),
                 control_features=control
             )
             unconditionned_predicted_noise = self.unet(latents)
             predicted_noise = unconditionned_predicted_noise + condition_scale * (
                 predicted_noise - unconditionned_predicted_noise
             )
+        self.unet.to(device="cpu")
 
         x = x.narrow(dim=1, start=0, length=4)  # support > 4 channels for inpainting
 
-        return self.solver(x, predicted_noise=predicted_noise, step=step)
+        self.solver.to(device=devices[0])
+        result = self.solver(x, predicted_noise=predicted_noise, step=step)
+        self.solver.to(device="cpu")
+        return result
 
     def compute_object_embedding(self, image: Tensor) -> Tensor:
         """ """
@@ -224,14 +235,14 @@ class AnyDoor(fl.Module):
         """ """
         return self.control_model(image)
 
-    def compute_conditionning(
-        self, object: Tensor, background: Tensor
-    ) -> AnyDoorConditionnig:
+    # def compute_conditionning(
+    #     self, object: Tensor, background: Tensor
+    # ) -> AnyDoorConditionnig:
 
-        return AnyDoorConditionnig(
-            object_embedding=self.compute_object_embedding(object),
-            negative_object_embedding=self.compute_object_embedding(
-                torch.zeros((object.shape[0], 3, 224, 224))
-            ),
-            control_features=self.compute_control_features(background),
-        )
+    #     return AnyDoorConditionnig(
+    #         object_embedding=self.compute_object_embedding(object),
+    #         negative_object_embedding=self.compute_object_embedding(
+    #             torch.zeros((object.shape[0], 3, 224, 224))
+    #         ),
+    #         control_features=self.compute_control_features(background),
+    #     )
