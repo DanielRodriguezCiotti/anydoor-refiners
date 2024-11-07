@@ -18,6 +18,8 @@ aiosignal==1.3.1
     # via aiohttp
 antlr4-python3-runtime==4.9.3
     # via omegaconf
+appnope==0.1.4
+    # via ipykernel
 asttokens==2.4.1
     # via stack-data
 attrs==24.2.0
@@ -29,6 +31,10 @@ charset-normalizer==3.4.0
 comm==0.2.2
     # via ipykernel
     # via ipywidgets
+contourpy==1.3.0
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
 debugpy==1.8.7
     # via ipykernel
 decorator==5.1.1
@@ -44,7 +50,8 @@ filelock==3.16.1
     # via huggingface-hub
     # via torch
     # via transformers
-    # via triton
+fonttools==4.54.1
+    # via matplotlib
 frozenlist==1.5.0
     # via aiohttp
     # via aiosignal
@@ -85,11 +92,15 @@ jupyter-core==5.7.2
     # via jupyter-client
 jupyterlab-widgets==3.0.13
     # via ipywidgets
+kiwisolver==1.4.7
+    # via matplotlib
 lightning-utilities==0.11.8
     # via pytorch-lightning
     # via torchmetrics
 markupsafe==3.0.2
     # via jinja2
+matplotlib==3.9.2
+    # via anydoor-refiners
 matplotlib-inline==0.1.7
     # via ipykernel
     # via ipython
@@ -103,41 +114,14 @@ nest-asyncio==1.6.0
 networkx==3.4.2
     # via torch
 numpy==2.1.2
+    # via contourpy
     # via diffusers
+    # via matplotlib
     # via opencv-python
     # via refiners
     # via torchmetrics
     # via torchvision
     # via transformers
-nvidia-cublas-cu12==12.4.5.8
-    # via nvidia-cudnn-cu12
-    # via nvidia-cusolver-cu12
-    # via torch
-nvidia-cuda-cupti-cu12==12.4.127
-    # via torch
-nvidia-cuda-nvrtc-cu12==12.4.127
-    # via torch
-nvidia-cuda-runtime-cu12==12.4.127
-    # via torch
-nvidia-cudnn-cu12==9.1.0.70
-    # via torch
-nvidia-cufft-cu12==11.2.1.3
-    # via torch
-nvidia-curand-cu12==10.3.5.147
-    # via torch
-nvidia-cusolver-cu12==11.6.1.9
-    # via torch
-nvidia-cusparse-cu12==12.3.1.170
-    # via nvidia-cusolver-cu12
-    # via torch
-nvidia-nccl-cu12==2.21.5
-    # via torch
-nvidia-nvjitlink-cu12==12.4.127
-    # via nvidia-cusolver-cu12
-    # via nvidia-cusparse-cu12
-    # via torch
-nvidia-nvtx-cu12==12.4.127
-    # via torch
 omegaconf==2.3.0
     # via anydoor-refiners
 opencv-python==4.10.0.84
@@ -146,6 +130,7 @@ packaging==24.1
     # via huggingface-hub
     # via ipykernel
     # via lightning-utilities
+    # via matplotlib
     # via pytest
     # via pytorch-lightning
     # via refiners
@@ -157,6 +142,7 @@ pexpect==4.9.0
     # via ipython
 pillow==11.0.0
     # via diffusers
+    # via matplotlib
     # via refiners
     # via torchvision
 platformdirs==4.3.6
@@ -175,10 +161,13 @@ pure-eval==0.2.3
     # via stack-data
 pygments==2.18.0
     # via ipython
+pyparsing==3.2.0
+    # via matplotlib
 pytest==8.3.3
     # via anydoor-refiners
 python-dateutil==2.9.0.post0
     # via jupyter-client
+    # via matplotlib
 pytorch-lightning==2.4.0
     # via anydoor-refiners
 pyyaml==6.0.2
@@ -246,8 +235,6 @@ traitlets==5.14.3
     # via matplotlib-inline
 transformers==4.46.0
     # via refiners
-triton==3.1.0
-    # via torch
 typeguard==2.13.3
     # via jaxtyping
 typing-extensions==4.12.2
