@@ -4,7 +4,7 @@ import sys
 sys.path.append("./AnyDoor/")
 from cldm.model import create_model
 
-model = create_model("../src/anydoor_original/configs/anydoor.yaml")
+model = create_model("./src/anydoor_original/configs/anydoor.yaml")
 print("Model loaded successfully")
 
 if __name__ == "__main__":
