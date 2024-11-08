@@ -43,15 +43,14 @@ solver_params = SolverParams(
     final_diffusion_rate=0.0120,
 )
 
-devices = ["cpu","cuda:0", "cuda:1", "cuda:2", "cuda:3"]
 
 class AnyDoor(fl.Module):
     def __init__(
         self,
-        unet: UNet, # = UNet(4),
-        lda: LatentDiffusionAutoencoder, # = AnydoorAutoencoder(),
-        object_encoder: fl.Module, # = DINOv2Encoder(),
-        control_model: ControlNet, # = ControlNet(4),
+        unet: UNet,
+        lda: LatentDiffusionAutoencoder, 
+        object_encoder: fl.Module,
+        control_model: ControlNet,
         solver: Solver = DDIM(num_inference_steps=50, params=solver_params),
         device: Device | str = "cpu",
         dtype: DType = torch.float32,
@@ -189,42 +188,35 @@ class AnyDoor(fl.Module):
         condition_scale: float = 1.0,
     ) -> Tensor:
         # Init variables
-        latents = x.to(device=devices[0])
-        timestep = self.solver.timesteps[step].unsqueeze(dim=0).to(device=devices[0])
+        latents = x
+        timestep = self.solver.timesteps[step].unsqueeze(dim=0)
         latents = self.solver.scale_model_input(latents, step=step) # Returns latents for DDIM
         
         # Compute control
-        self.control_model.to(device=devices[0])
         self.control_model.set_timestep(timestep=timestep)
-        self.control_model.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding.to(device=devices[0]))
-        control = self.control_model(control_background_image.to(device=devices[0]))
-        self.control_model.to(device="cpu")
+        self.control_model.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding)
+        control = self.control_model(control_background_image)
 
         # Compute predicted noise
         self.set_unet_context(
             timestep=timestep,
-            object_embedding=object_embedding.to(device=devices[0]),
+            object_embedding=object_embedding,
             control_features=control,
         )
-        self.unet.to(device=devices[0])
         predicted_noise = self.unet(latents)
         if condition_scale != 1.0 and negative_object_embedding is not None:
             self.set_unet_context(
                 timestep=timestep,
-                object_embedding=negative_object_embedding.to(device=devices[0]),
+                object_embedding=negative_object_embedding,
                 control_features=control
             )
             unconditionned_predicted_noise = self.unet(latents)
             predicted_noise = unconditionned_predicted_noise + condition_scale * (
                 predicted_noise - unconditionned_predicted_noise
             )
-        self.unet.to(device="cpu")
 
         x = x.narrow(dim=1, start=0, length=4)  # support > 4 channels for inpainting
-
-        self.solver.to(device=devices[0])
         result = self.solver(x, predicted_noise=predicted_noise, step=step)
-        self.solver.to(device="cpu")
         return result
 
     def compute_object_embedding(self, image: Tensor) -> Tensor:

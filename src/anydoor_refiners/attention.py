@@ -32,14 +32,18 @@ from refiners.fluxion.layers import (
 
 try:
     import xformers
-    import xformers.ops 
+    import xformers.ops
+
     XFORMERS_IS_AVAILBLE = True
 except:  # noqa: E722
     XFORMERS_IS_AVAILBLE = False
 
-dim_heads = 64
+
 class XformersScaledDotProductAttention(ScaledDotProductAttention):
 
+    def __init__(self, head_dimension: int, num_heads: int) -> None:
+        self.head_dimension = head_dimension
+        super().__init__(num_heads=num_heads)
 
     # Override the base class method to use the xformers implementation
     def forward(
@@ -53,12 +57,12 @@ class XformersScaledDotProductAttention(ScaledDotProductAttention):
         Split the input tensors (query, key, value) into multiple heads along the embedding dimension,
         then compute the scaled dot product attention for each head, and finally merge the heads back.
         """
-        batch_size = query.shape[0]  
+        batch_size = query.shape[0]
         q_heads, k_heads, v_heads = map(
             lambda t: t.unsqueeze(3)
-            .reshape(batch_size, t.shape[1], self.num_heads, -1)
+            .reshape(batch_size, t.shape[1], self.num_heads, self.head_dimension)
             .permute(0, 2, 1, 3)
-            .reshape(batch_size * self.num_heads, t.shape[1], -1)
+            .reshape(batch_size * self.num_heads, t.shape[1], self.head_dimension)
             .contiguous(),
             (query, key, value),
         )
@@ -73,11 +77,21 @@ class XformersScaledDotProductAttention(ScaledDotProductAttention):
         )
         attention_output = (
             attention_output.unsqueeze(0)
-            .reshape(batch_size, self.num_heads, attention_output.shape[1], -1)
+            .reshape(
+                batch_size,
+                self.num_heads,
+                attention_output.shape[1],
+                self.head_dimension,
+            )
             .permute(0, 2, 1, 3)
-            .reshape(batch_size, attention_output.shape[1], -1)
+            .reshape(
+                batch_size,
+                attention_output.shape[1],
+                self.head_dimension * self.num_heads,
+            )
         )
         return attention_output
+
 
 class CrossAttentionBlock(Chain):
     def __init__(
@@ -296,13 +310,17 @@ class CrossAttentionBlock2d(Residual):
             ),
             out_block,
         )
-
         if XFORMERS_IS_AVAILBLE:
             for attention in self.layers(Attention):
-                attention_product = attention.layer("ScaledDotProductAttention", ScaledDotProductAttention)
-                num_heads = attention_product.num_heads 
+                head_dimension = attention.embedding_dim // attention.num_heads
+                attention_product = attention.layer(
+                    "ScaledDotProductAttention", ScaledDotProductAttention
+                )
+                num_heads = attention_product.num_heads
                 attention.remove(attention_product)
-                attention.insert(-2, XformersScaledDotProductAttention(num_heads=num_heads))
+                attention.insert(
+                    -2, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads)
+                )
 
     def init_context(self) -> Contexts:
         return {"flatten": {"sizes": []}}
