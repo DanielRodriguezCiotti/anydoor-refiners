@@ -43,7 +43,7 @@ solver_params = SolverParams(
     final_diffusion_rate=0.0120,
 )
 
-devices = ["cuda:0", "cuda:1", "cuda:2", "cuda:3"]
+devices = ["cpu","cuda:0", "cuda:1", "cuda:2", "cuda:3"]
 
 class AnyDoor(fl.Module):
     def __init__(

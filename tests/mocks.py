@@ -1,7 +1,12 @@
+from typing import Any
 import torch
 from torch import  device as Device, dtype as DType
 import refiners.fluxion.layers as fl
+from refiners.foundationals.latent_diffusion.auto_encoder import (
+    LatentDiffusionAutoencoder,
+)
 
+from anydoor_refiners.controlnet import ControlNet
 
 class DINOv2EncoderMock(fl.Module):
     def __init__(
@@ -22,25 +27,35 @@ class DINOv2EncoderMock(fl.Module):
             return self.embedding
 
 
-class ControlNetMock(fl.Module):
+class ControlNetMock(ControlNet):
     def __init__(
         self,
         control_features: list[torch.Tensor],
         device: Device | str | None = None,
         dtype: DType | None = None,
     ):
-        super().__init__()
+        # Initialize the fl.Module class
+        fl.Module.__init__(self)
         self.control = control_features
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         return self.control
     
-class AnydoorAutoencoderMock(fl.Identity):
+    def set_timestep(self, timestep):
+        return None
+    def set_dinov2_object_embedding(self, dinov2_object_embedding):
+        return None
+    
+class AnydoorAutoencoderMock(LatentDiffusionAutoencoder):
     def __init__(
         self,
         device: Device | str | None = None,
         dtype: DType | None = None,
     ):
-        super().__init__()
+        fl.Module.__init__(self)
+        pass
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x
         
 
