@@ -71,7 +71,7 @@ class AnydoorAutoencoder(LatentDiffusionAutoencoder):
                 num_heads = attention_product.num_heads
                 attention.remove(attention_product)
                 attention.insert(
-                    -2, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads)
+                    -3, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads)
                 )
 
 

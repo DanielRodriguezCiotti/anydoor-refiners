@@ -226,7 +226,7 @@ def preprocess_images(
         background=final_bg_image.copy(),
         collage=final_collage.copy(),
         background_box=np.array(cropped_background_bbox),
-        sizes=np.array(list(collage.shape) + list(padded_collage.shape))
+        sizes=np.array(list(collage.shape[:2]) + list(padded_collage.shape[:2]))
     )
 
     return item

@@ -35,11 +35,11 @@ class AnyDoor(fl.Module):
             device if isinstance(device, Device) else Device(device=device)
         )
         self.dtype = dtype
-        self.unet = UNet(4, device=self.device, dtype=self.dtype)
-        self.lda = AnydoorAutoencoder(device=self.device, dtype=self.dtype)
-        self.object_encoder = DINOv2Encoder(device=self.device, dtype=self.dtype)
-        self.control_model = ControlNet(4, device=self.device, dtype=self.dtype)
-        self.solver = DDIM(num_inference_steps=num_inference_steps, params=solver_params)
+        self.unet = UNet(4).to(device=self.device, dtype=self.dtype)
+        self.lda = AnydoorAutoencoder().to(device=self.device, dtype=self.dtype)
+        self.object_encoder = DINOv2Encoder().to(device=self.device, dtype=self.dtype)
+        self.control_model = ControlNet(4).to(device=self.device, dtype=self.dtype)
+        self.solver = DDIM(num_inference_steps=num_inference_steps, params=solver_params).to(device=self.device, dtype=self.dtype)
 
 
     def set_inference_steps(self, num_steps: int, first_step: int = 0) -> None:
