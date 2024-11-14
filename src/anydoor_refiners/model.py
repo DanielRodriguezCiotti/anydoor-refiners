@@ -3,11 +3,7 @@ from PIL import Image
 from torch import Tensor, device as Device, dtype as DType
 
 import refiners.fluxion.layers as fl
-from refiners.foundationals.latent_diffusion.auto_encoder import (
-    LatentDiffusionAutoencoder,
-)
 from refiners.foundationals.latent_diffusion.solvers import (
-    Solver,
     DDIM,
     SolverParams,
     NoiseSchedule,
@@ -15,25 +11,8 @@ from refiners.foundationals.latent_diffusion.solvers import (
 from src.anydoor_refiners.dinov2 import DINOv2Encoder
 from src.anydoor_refiners.unet import UNet
 from anydoor_refiners.controlnet import ControlNet
+from anydoor_refiners.lda import AnydoorAutoencoder
 
-from dataclasses import dataclass
-
-
-@dataclass
-class AnyDoorConditionnig:
-    control_features: list[Tensor]
-    object_embedding: Tensor
-    negative_object_embedding: Tensor
-
-
-class AnydoorAutoencoder(LatentDiffusionAutoencoder):
-    """Stable Diffusion 1.5 autoencoder model.
-
-    Attributes:
-        encoder_scale: The encoder scale to use.
-    """
-
-    encoder_scale: float = 0.18215
 
 
 solver_params = SolverParams(
@@ -47,11 +26,7 @@ solver_params = SolverParams(
 class AnyDoor(fl.Module):
     def __init__(
         self,
-        unet: UNet,
-        lda: LatentDiffusionAutoencoder, 
-        object_encoder: fl.Module,
-        control_model: ControlNet,
-        solver: Solver = DDIM(num_inference_steps=50, params=solver_params),
+        num_inference_steps: int = 50,
         device: Device | str = "cpu",
         dtype: DType = torch.float32,
     ) -> None:
@@ -60,23 +35,12 @@ class AnyDoor(fl.Module):
             device if isinstance(device, Device) else Device(device=device)
         )
         self.dtype = dtype
-        self.unet = unet.to(device=self.device, dtype=self.dtype)
-        self.lda = lda.to(device=self.device, dtype=self.dtype)
-        self.solver = solver.to(device=self.device, dtype=self.dtype)
-        self.object_encoder = object_encoder.to(device=self.device, dtype=self.dtype)
-        self.control_model = control_model.to(device=self.device, dtype=self.dtype)
-        # self.log_solver_elements()
+        self.unet = UNet(4, device=self.device, dtype=self.dtype)
+        self.lda = AnydoorAutoencoder(device=self.device, dtype=self.dtype)
+        self.object_encoder = DINOv2Encoder(device=self.device, dtype=self.dtype)
+        self.control_model = ControlNet(4, device=self.device, dtype=self.dtype)
+        self.solver = DDIM(num_inference_steps=num_inference_steps, params=solver_params)
 
-    def change_tensor_to_device(self, tensor: Tensor, model : ControlNet | Solver | UNet) -> Tensor:
-        return tensor.to(device=model.device, dtype=model.dtype)
-
-    def log_solver_elements(self):
-        timesteps = self.solver.timesteps
-        alphas_cumprod = self.solver.cumulative_scale_factors.tolist()
-        print(alphas_cumprod)
-        ddim_alphas_cumprod = [alphas_cumprod[step] for step in timesteps]
-        print(timesteps)
-        print(ddim_alphas_cumprod)
 
     def set_inference_steps(self, num_steps: int, first_step: int = 0) -> None:
         """Set the steps of the diffusion process.
@@ -144,16 +108,7 @@ class AnyDoor(fl.Module):
             latent_width,
         ], f"noise shape is not compatible: {noise.shape}, with size: {size}"
         
-        # if init_image is None:
         latent = noise    
-        # else:
-        #     resized = init_image.resize(size=(width, height))  # type: ignore
-        #     encoded_image = self.lda.image_to_latents(resized)
-        #     latent = self.solver.add_noise(
-        #         x=encoded_image,
-        #         noise=noise,
-        #         step=self.solver.first_inference_step,
-        #     )
 
         return self.solver.scale_model_input(latent, step=-1)
 
@@ -226,15 +181,3 @@ class AnyDoor(fl.Module):
     def compute_control_features(self, image: Tensor, object) -> list[Tensor]:
         """ """
         return self.control_model(image)
-
-    # def compute_conditionning(
-    #     self, object: Tensor, background: Tensor
-    # ) -> AnyDoorConditionnig:
-
-    #     return AnyDoorConditionnig(
-    #         object_embedding=self.compute_object_embedding(object),
-    #         negative_object_embedding=self.compute_object_embedding(
-    #             torch.zeros((object.shape[0], 3, 224, 224))
-    #         ),
-    #         control_features=self.compute_control_features(background),
-    #     )
