@@ -136,8 +136,8 @@ def test_model_output_similarity(setup_models, load_weight_mapping, control_shap
 
     # Define inputs for testing
     x = torch.randn(1, 4, 32, 32)
-    timestep = torch.full((1,), 1, dtype=torch.long)
-    object_embedding = torch.randn(1, 1, 1024)
+    timestep = torch.full((1,), 961, dtype=torch.long)
+    object_embedding = torch.randn(1, 10, 1024)
     control = [torch.randn(*shape) for shape in control_shapes]
 
     with torch.no_grad():

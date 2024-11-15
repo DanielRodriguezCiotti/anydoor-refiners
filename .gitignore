@@ -13,4 +13,4 @@ wheels/
 notebooks/
 ckpt/
 epoch=1-step=8687.ckpt
-.gradio/certificate.pem
+.gradio/
