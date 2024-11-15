@@ -14,7 +14,6 @@ from refiners.foundationals.latent_diffusion.range_adapter import (
 from refiners.foundationals.latent_diffusion.unet import (
     ResidualAccumulator,
     ResidualBlock,
-    ResidualConcatenator,
 )
 
 
@@ -265,12 +264,35 @@ class MiddleBlock(fl.Chain):
             ),
         )
 
+class ResidualControlledConcatenator(fl.Chain):
+    def __init__(self, n: int) -> None:
+        self.n = n
+        if n == -2:
+            layer = fl.Residual(
+                fl.UseContext(context="control", key="residuals").compose(
+                    lambda residuals: residuals[self.n + 1]
+                ),
+            )
+        else:
+            layer = fl.Identity()
+        super().__init__(
+            fl.Concatenate(
+                layer,
+                fl.Sum(
+                    fl.UseContext(context="unet", key="residuals").compose(
+                        lambda residuals: residuals[self.n]
+                    ),
+                    fl.UseContext(context="control", key="residuals").compose(
+                        lambda residuals: residuals[self.n]
+                    ),
+                ),
+                dim=1,
+            ),
+        )
 
-class AnyDoorUNet(fl.Chain):
-    """Inspired from Stable Diffusion 1.5 U-Net.
 
-    See [[arXiv:2112.10752] High-Resolution Image Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) for more details.
-    """
+class UNet(fl.Chain):
+    """The controlled U-Net model."""
 
     def __init__(
         self,
@@ -321,11 +343,12 @@ class AnyDoorUNet(fl.Chain):
         for n, block in enumerate(cast(Iterable[fl.Chain], self.DownBlocks)):
             block.append(ResidualAccumulator(n))
         for n, block in enumerate(cast(Iterable[fl.Chain], self.UpBlocks)):
-            block.insert(0, ResidualConcatenator(-n - 2))
+            block.insert(0, ResidualControlledConcatenator(-n - 2))
 
     def init_context(self) -> Contexts:
         return {
             "unet": {"residuals": [0.0] * 13},
+            "control": {"residuals": [0.0] * 13},
             "diffusion": {"timestep": None},
             "range_adapter": {"timestep_embedding": None},
             "sampling": {"shapes": []},
@@ -355,3 +378,11 @@ class AnyDoorUNet(fl.Chain):
             timestep: The timestep.
         """
         self.set_context("diffusion", {"timestep": timestep})
+
+    def set_control_residuals(self, residuals: list[Tensor]) -> None:
+        """Set the control residuals.
+
+        Args:
+            residuals: The control residuals.
+        """
+        self.set_context("control", {"residuals": residuals})

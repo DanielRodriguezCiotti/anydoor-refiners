@@ -8,3 +8,9 @@ wheels/
 
 # venv
 .venv
+
+# notebooks
+notebooks/
+ckpt/
+epoch=1-step=8687.ckpt
+.gradio/

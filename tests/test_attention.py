@@ -2,8 +2,10 @@ import pytest
 import torch
 import json
 from typing import Tuple
-from anydoor_original.attention import SpatialTransformer
 from src.anydoor_refiners.attention import CrossAttentionBlock2d
+import sys
+sys.path.append("./AnyDoor/")
+from ldm.modules.attention import SpatialTransformer
 
 from utils.weight_mapper import get_converted_state_dict
 
@@ -89,5 +91,5 @@ def test_model_output_similarity(setup_models):
         y_source = spatial_transformer.forward(input_tensor, context=context_tensor)
         # Assert that the model outputs are similar within a specified threshold
         assert torch.allclose(
-            y_source, y_target, atol=1e-6
+            y_source, y_target, atol=1e-10
         ), "Model outputs are not similar within the threshold"

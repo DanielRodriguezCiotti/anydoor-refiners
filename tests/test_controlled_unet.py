@@ -2,11 +2,13 @@ import pytest
 import torch
 import json
 from typing import Tuple
-from src.anydoor_original.controlled_unet import (
+import sys
+sys.path.append("./AnyDoor/")
+from cldm.cldm import (
     ControlledUnetModel as AnyDoorControlledUnet,
 )
-from src.anydoor_refiners.controlled_unet import (
-    ControlledUNet as RefinersControlledUnet,
+from src.anydoor_refiners.unet import (
+    UNet as RefinersControlledUnet,
 )
 from utils.weight_mapper import get_converted_state_dict
 
@@ -134,8 +136,8 @@ def test_model_output_similarity(setup_models, load_weight_mapping, control_shap
 
     # Define inputs for testing
     x = torch.randn(1, 4, 32, 32)
-    timestep = torch.full((1,), 1, dtype=torch.long)
-    object_embedding = torch.randn(1, 1, 1024)
+    timestep = torch.full((1,), 961, dtype=torch.long)
+    object_embedding = torch.randn(1, 10, 1024)
     control = [torch.randn(*shape) for shape in control_shapes]
 
     with torch.no_grad():
@@ -148,6 +150,5 @@ def test_model_output_similarity(setup_models, load_weight_mapping, control_shap
         y2 = anydoor_unet.forward(x, timestep, object_embedding, control.copy())
 
         # Check similarity within a specified tolerance
-        assert torch.allclose(
-            y1, y2, atol=1e-6
-        ), f"Model outputs are not similar within the threshold. Norm diff: {torch.norm(y1 - y2)}"
+        print(f"Norm diff: {torch.norm(y1 - y2)}")
+        assert torch.norm(y1 - y2) == 0, f"Model outputs are not similar within the threshold. Norm diff: {torch.norm(y1 - y2)}"
