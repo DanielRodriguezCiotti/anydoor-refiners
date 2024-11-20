@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 import os
+import torch
 from PIL import Image 
 from .base import BaseDataset
-
 class VitonHDDataset(BaseDataset):
     def __init__(self, image_dir):
         self.image_root = image_dir
@@ -29,7 +29,7 @@ class VitonHDDataset(BaseDataset):
                 pass_flag = False
         return pass_flag
             
-    def get_sample(self, idx):
+    def get_sample(self, idx, inference = False):
 
         ref_image_path = os.path.join(self.image_root, self.data[idx])
         tar_image_path = ref_image_path.replace('/cloth/', '/image/')
@@ -49,8 +49,27 @@ class VitonHDDataset(BaseDataset):
         tar_mask= np.array(tar_mask)
         tar_mask = tar_mask == 5
 
-        item_with_collage = self.process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 1.0)
+        try:
+            item_with_collage = self.process_pairs(ref_image, ref_mask, tar_image, tar_mask, max_ratio = 1.0)
+        except Exception as _:
+            print(f"Error in processing with {ref_image_path}")
+            return None
         sampled_time_steps = self.sample_timestep()
         item_with_collage['time_steps'] = sampled_time_steps
-        return item_with_collage
+
+
+        batch = dict(
+            object = torch.from_numpy(item_with_collage['ref']).permute(2,0,1),
+            background = torch.from_numpy(item_with_collage['jpg']).permute(2,0,1),
+            collage=torch.from_numpy(item_with_collage['hint']).permute(2,0,1),
+            background_box=torch.from_numpy(item_with_collage['tar_box_yyxx_crop']),
+            sizes=torch.from_numpy(item_with_collage['extra_sizes']),
+            time_steps=torch.from_numpy(sampled_time_steps),
+        )
+
+        if inference:
+            batch["background_image"] = torch.from_numpy(tar_image)
+            return batch
+        else:
+            return batch
 

@@ -141,6 +141,7 @@ class AnyDoor(fl.Module):
         object_embedding : Tensor,
         negative_object_embedding : Tensor | None = None,
         condition_scale: float = 1.0,
+        training: bool = False,
     ) -> Tensor:
         # Init variables
         latents = x
@@ -159,6 +160,9 @@ class AnyDoor(fl.Module):
             control_features=control,
         )
         predicted_noise = self.unet(latents)
+        if training:
+            return predicted_noise
+
         if condition_scale != 1.0 and negative_object_embedding is not None:
             self.set_unet_context(
                 timestep=timestep,

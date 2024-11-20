@@ -10,22 +10,58 @@
 #   universal: false
 
 -e file:.
+aiofiles==23.2.1
+    # via gradio
 aiohappyeyeballs==2.4.3
     # via aiohttp
 aiohttp==3.10.10
+    # via datasets
     # via fsspec
 aiosignal==1.3.1
     # via aiohttp
+albucore==0.0.20
+    # via albumentations
+albumentations==1.4.21
+    # via anydoor-refiners
+annotated-types==0.7.0
+    # via pydantic
 antlr4-python3-runtime==4.9.3
     # via omegaconf
+anyio==4.6.2.post1
+    # via gradio
+    # via httpx
+    # via starlette
+arrow==1.3.0
+    # via isoduration
 asttokens==2.4.1
     # via stack-data
 attrs==24.2.0
     # via aiohttp
+    # via jsonschema
+    # via referencing
+bitsandbytes==0.44.1
+    # via refiners
+boto3==1.35.65
+    # via neptune
+botocore==1.35.65
+    # via boto3
+    # via s3transfer
+bravado==11.0.3
+    # via neptune
+bravado-core==6.1.1
+    # via bravado
 certifi==2024.8.30
+    # via httpcore
+    # via httpx
     # via requests
+    # via sentry-sdk
 charset-normalizer==3.4.0
     # via requests
+click==8.1.7
+    # via neptune
+    # via typer
+    # via uvicorn
+    # via wandb
 comm==0.2.2
     # via ipykernel
     # via ipywidgets
@@ -33,41 +69,78 @@ contourpy==1.3.0
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
+datasets==3.1.0
+    # via refiners
 debugpy==1.8.7
     # via ipykernel
 decorator==5.1.1
     # via ipython
-diffusers==0.31.0
-    # via refiners
+dill==0.3.8
+    # via datasets
+    # via multiprocess
+docker-pycreds==0.4.0
+    # via wandb
 einops==0.8.0
     # via anydoor-refiners
+eval-type-backport==0.2.0
+    # via albumentations
 executing==2.1.0
     # via stack-data
+fastapi==0.115.5
+    # via gradio
+ffmpy==0.4.0
+    # via gradio
 filelock==3.16.1
-    # via diffusers
+    # via datasets
     # via huggingface-hub
     # via torch
-    # via transformers
     # via triton
 fonttools==4.54.1
     # via matplotlib
+fqdn==1.5.1
+    # via jsonschema
 frozenlist==1.5.0
     # via aiohttp
     # via aiosignal
-fsspec==2024.10.0
+fsspec==2024.9.0
+    # via datasets
+    # via gradio-client
     # via huggingface-hub
     # via pytorch-lightning
     # via torch
-huggingface-hub==0.26.1
-    # via diffusers
+future==1.0.0
+    # via neptune
+gitdb==4.0.11
+    # via gitpython
+gitpython==3.1.43
+    # via neptune
     # via refiners
-    # via tokenizers
-    # via transformers
+    # via wandb
+gradio==5.5.0
+    # via anydoor-refiners
+gradio-client==1.4.2
+    # via gradio
+h11==0.14.0
+    # via httpcore
+    # via uvicorn
+httpcore==1.0.6
+    # via httpx
+httpx==0.27.2
+    # via gradio
+    # via gradio-client
+    # via safehttpx
+huggingface-hub==0.26.1
+    # via datasets
+    # via gradio
+    # via gradio-client
 idna==3.10
+    # via anyio
+    # via httpx
+    # via jsonschema
     # via requests
     # via yarl
-importlib-metadata==8.5.0
-    # via diffusers
+importlib-resources==6.4.5
+    # via swagger-spec-validator
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.5
@@ -78,12 +151,27 @@ ipython==8.29.0
     # via ipywidgets
 ipywidgets==8.1.5
     # via anydoor-refiners
+isoduration==20.11.0
+    # via jsonschema
 jaxtyping==0.2.34
     # via refiners
 jedi==0.19.1
     # via ipython
 jinja2==3.1.4
+    # via gradio
     # via torch
+jmespath==1.0.1
+    # via boto3
+    # via botocore
+jsonpointer==3.0.0
+    # via jsonschema
+jsonref==1.1.0
+    # via bravado-core
+jsonschema==4.23.0
+    # via bravado-core
+    # via swagger-spec-validator
+jsonschema-specifications==2024.10.1
+    # via jsonschema
 jupyter-client==8.6.3
     # via ipykernel
 jupyter-core==5.7.2
@@ -96,31 +184,54 @@ kiwisolver==1.4.7
 lightning-utilities==0.11.8
     # via pytorch-lightning
     # via torchmetrics
-markupsafe==3.0.2
+loguru==0.7.2
+    # via refiners
+markdown-it-py==3.0.0
+    # via rich
+markupsafe==2.1.5
+    # via gradio
     # via jinja2
 matplotlib==3.9.2
     # via anydoor-refiners
 matplotlib-inline==0.1.7
     # via ipykernel
     # via ipython
+mdurl==0.1.2
+    # via markdown-it-py
+monotonic==1.6
+    # via bravado
 mpmath==1.3.0
     # via sympy
+msgpack==1.1.0
+    # via bravado
+    # via bravado-core
 multidict==6.1.0
     # via aiohttp
     # via yarl
+multiprocess==0.70.16
+    # via datasets
+neptune==1.13.0
+    # via refiners
 nest-asyncio==1.6.0
     # via ipykernel
 networkx==3.4.2
     # via torch
 numpy==2.1.2
+    # via albucore
+    # via albumentations
+    # via bitsandbytes
     # via contourpy
-    # via diffusers
+    # via datasets
+    # via gradio
     # via matplotlib
     # via opencv-python
+    # via opencv-python-headless
+    # via pandas
     # via refiners
+    # via scipy
     # via torchmetrics
     # via torchvision
-    # via transformers
+    # via xformers
 nvidia-cublas-cu12==12.4.5.8
     # via nvidia-cudnn-cu12
     # via nvidia-cusolver-cu12
@@ -150,109 +261,214 @@ nvidia-nvjitlink-cu12==12.4.127
     # via torch
 nvidia-nvtx-cu12==12.4.127
     # via torch
+oauthlib==3.2.2
+    # via neptune
+    # via requests-oauthlib
 omegaconf==2.3.0
     # via anydoor-refiners
 opencv-python==4.10.0.84
     # via anydoor-refiners
+opencv-python-headless==4.10.0.84
+    # via albucore
+    # via albumentations
+orjson==3.10.11
+    # via gradio
 packaging==24.1
+    # via datasets
+    # via gradio
+    # via gradio-client
     # via huggingface-hub
     # via ipykernel
     # via lightning-utilities
     # via matplotlib
+    # via neptune
     # via pytest
     # via pytorch-lightning
     # via refiners
     # via torchmetrics
-    # via transformers
+pandas==2.2.3
+    # via datasets
+    # via gradio
+    # via neptune
 parso==0.8.4
     # via jedi
 pexpect==4.9.0
     # via ipython
 pillow==11.0.0
-    # via diffusers
+    # via gradio
     # via matplotlib
+    # via neptune
     # via refiners
     # via torchvision
 platformdirs==4.3.6
     # via jupyter-core
+    # via wandb
 pluggy==1.5.0
     # via pytest
+prodigyopt==1.0
+    # via refiners
 prompt-toolkit==3.0.48
     # via ipython
 propcache==0.2.0
     # via yarl
+protobuf==5.28.3
+    # via wandb
 psutil==6.1.0
     # via ipykernel
+    # via neptune
+    # via wandb
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
     # via stack-data
+pyarrow==18.0.0
+    # via datasets
+pydantic==2.9.2
+    # via albumentations
+    # via fastapi
+    # via gradio
+    # via refiners
+pydantic-core==2.23.4
+    # via pydantic
+pydub==0.25.1
+    # via gradio
 pygments==2.18.0
     # via ipython
+    # via rich
+pyjwt==2.10.0
+    # via neptune
 pyparsing==3.2.0
     # via matplotlib
 pytest==8.3.3
     # via anydoor-refiners
 python-dateutil==2.9.0.post0
+    # via arrow
+    # via botocore
+    # via bravado
+    # via bravado-core
     # via jupyter-client
     # via matplotlib
+    # via pandas
+python-multipart==0.0.12
+    # via gradio
 pytorch-lightning==2.4.0
     # via anydoor-refiners
+pytz==2024.2
+    # via bravado-core
+    # via pandas
 pyyaml==6.0.2
+    # via albumentations
+    # via bravado
+    # via bravado-core
+    # via datasets
+    # via gradio
     # via huggingface-hub
     # via omegaconf
     # via pytorch-lightning
-    # via transformers
+    # via swagger-spec-validator
+    # via wandb
 pyzmq==26.2.0
     # via ipykernel
     # via jupyter-client
-refiners @ git+https://github.com/finegrain-ai/refiners@d90bb25151697531b50cb9783d1022b208a13d70
+referencing==0.35.1
+    # via jsonschema
+    # via jsonschema-specifications
+refiners @ git+https://github.com/finegrain-ai/refiners.git@79c9991cfa34ed3e5b88cb30f6d2e27759bdea67
     # via anydoor-refiners
-regex==2024.9.11
-    # via diffusers
-    # via transformers
 requests==2.32.3
-    # via diffusers
+    # via bravado
+    # via bravado-core
+    # via datasets
     # via huggingface-hub
-    # via refiners
-    # via transformers
+    # via neptune
+    # via requests-oauthlib
+    # via wandb
+requests-oauthlib==2.0.0
+    # via neptune
+rfc3339-validator==0.1.4
+    # via jsonschema
+rfc3986-validator==0.1.1
+    # via jsonschema
+rich==13.9.4
+    # via typer
+rpds-py==0.21.0
+    # via jsonschema
+    # via referencing
+ruff==0.7.3
+    # via gradio
+s3transfer==0.10.3
+    # via boto3
+safehttpx==0.1.1
+    # via gradio
 safetensors==0.4.5
     # via anydoor-refiners
-    # via diffusers
     # via refiners
-    # via transformers
-segment-anything-py==1.0.1
-    # via refiners
+scipy==1.14.1
+    # via albumentations
+semantic-version==2.10.0
+    # via gradio
+sentry-sdk==2.18.0
+    # via wandb
+setproctitle==1.3.4
+    # via wandb
 setuptools==75.3.0
     # via lightning-utilities
+    # via wandb
+shellingham==1.5.4
+    # via typer
+simplejson==3.19.3
+    # via bravado
+    # via bravado-core
+simsimd==6.0.5
+    # via albucore
 six==1.16.0
     # via asttokens
+    # via bravado
+    # via bravado-core
+    # via docker-pycreds
+    # via neptune
     # via python-dateutil
+    # via rfc3339-validator
+smmap==5.0.1
+    # via gitdb
+sniffio==1.3.1
+    # via anyio
+    # via httpx
 stack-data==0.6.3
     # via ipython
+starlette==0.41.2
+    # via fastapi
+    # via gradio
+stringzilla==3.10.10
+    # via albucore
+swagger-spec-validator==3.0.4
+    # via bravado-core
+    # via neptune
 sympy==1.13.1
     # via torch
-tokenizers==0.20.1
-    # via transformers
-torch==2.5.0
+tomli==2.1.0
+    # via refiners
+tomlkit==0.12.0
+    # via gradio
+torch==2.5.1
+    # via bitsandbytes
     # via pytorch-lightning
     # via refiners
-    # via segment-anything-py
     # via torchmetrics
     # via torchvision
+    # via xformers
 torchmetrics==1.4.3
     # via pytorch-lightning
-torchvision==0.20.0
-    # via segment-anything-py
+torchvision==0.20.1
+    # via refiners
 tornado==6.4.1
     # via ipykernel
     # via jupyter-client
 tqdm==4.66.5
     # via anydoor-refiners
+    # via datasets
     # via huggingface-hub
     # via pytorch-lightning
-    # via refiners
-    # via transformers
 traitlets==5.14.3
     # via comm
     # via ipykernel
@@ -261,25 +477,56 @@ traitlets==5.14.3
     # via jupyter-client
     # via jupyter-core
     # via matplotlib-inline
-transformers==4.46.0
-    # via refiners
 triton==3.1.0
     # via torch
 typeguard==2.13.3
     # via jaxtyping
+typer==0.13.0
+    # via gradio
+types-python-dateutil==2.9.0.20241003
+    # via arrow
 typing-extensions==4.12.2
+    # via bravado
+    # via fastapi
+    # via gradio
+    # via gradio-client
     # via huggingface-hub
     # via ipython
     # via lightning-utilities
+    # via neptune
+    # via pydantic
+    # via pydantic-core
     # via pytorch-lightning
+    # via swagger-spec-validator
     # via torch
+    # via typer
+    # via wandb
+tzdata==2024.2
+    # via pandas
+uri-template==1.3.0
+    # via jsonschema
 urllib3==2.2.3
+    # via botocore
+    # via neptune
     # via requests
+    # via sentry-sdk
+uvicorn==0.32.0
+    # via gradio
+wandb==0.18.7
+    # via refiners
 wcwidth==0.2.13
     # via prompt-toolkit
+webcolors==24.11.1
+    # via jsonschema
+websocket-client==1.8.0
+    # via neptune
+websockets==12.0
+    # via gradio-client
 widgetsnbextension==4.0.13
     # via ipywidgets
+xformers==0.0.28.post3
+    # via anydoor-refiners
+xxhash==3.5.0
+    # via datasets
 yarl==1.17.0
     # via aiohttp
-zipp==3.20.2
-    # via importlib-metadata
