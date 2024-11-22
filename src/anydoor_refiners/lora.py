@@ -21,33 +21,13 @@ def build_lora(model : AnyDoor, rank: int, scale : float) -> None:
                 adapter = LoraAdapter(layer_dict['layer'],LinearLora(key,layer_dict['layer'].in_features,layer_dict['layer'].out_features,rank=rank,scale=scale))
                 adapter.inject(layer_dict['parent'])
 
-def get_lora_weights(base: fl.Chain) -> dict[str, torch.Tensor]:
-    prev_parent: fl.Chain | None = None
-    lora_weights: dict[str, torch.Tensor] = {}
-    n = 0
-    for lora_adapter, parent in base.walk(LoraAdapter):
-        for lora in lora_adapter.lora_layers :
-        # lora = next((l for l in lora_adapter.lora_layers if l.name == name), None)
-            if lora is None:
-                continue
-            n = (parent == prev_parent) and n + 1 or 1
-            pfx = f"{parent.get_path()}.{n}.{lora_adapter.target.__class__.__name__}"
-            lora_weights[f"{pfx}.down.weight"] = lora.down.weight
-            lora_weights[f"{pfx}.up.weight"] = lora.up.weight
-            prev_parent = parent
-    return lora_weights
+def get_lora_weights(base: fl.Module) -> dict[str, torch.Tensor]:
+    lora_state_dict = { k:v for k,v in base.state_dict().items() if "LinearLora" in k}
+    return lora_state_dict
 
-
-def load_lora_weights(base: fl.Chain, weights: dict[str, torch.Tensor]) -> None:
-    prev_parent: fl.Chain | None = None
-    n = 0
-    for lora_adapter, parent in base.walk(LoraAdapter):
-        for lora in lora_adapter.lora_layers :
-            if lora is None:
-                continue
-            n = (parent == prev_parent) and n + 1 or 1
-            pfx = f"{parent.get_path()}.{n}.{lora_adapter.target.__class__.__name__}"
-            lora.down.weight = weights[f"{pfx}.down.weight"]
-            lora.up.weight = weights[f"{pfx}.up.weight"]
-            prev_parent = parent
+def set_lora_weights(base: fl.Module, lora_state_dict: dict[str, torch.Tensor]):
+    state_dict = base.state_dict()
+    for k,v in lora_state_dict.items():
+        state_dict[k] = v
+    base.load_state_dict(state_dict)
     

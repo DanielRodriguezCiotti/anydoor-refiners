@@ -145,8 +145,11 @@ class AnyDoor(fl.Module):
     ) -> Tensor:
         # Init variables
         latents = x
-        timestep = self.solver.timesteps[step].unsqueeze(dim=0)
-        latents = self.solver.scale_model_input(latents, step=step) # Returns latents for DDIM
+        if training :
+            timestep = torch.tensor([step]).to(device=self.device, dtype=self.dtype)
+        else:
+            timestep = self.solver.timesteps[step].unsqueeze(dim=0)
+        # latents = self.solver.scale_model_input(latents, step=step) # Returns latents for DDIM
         
         # Compute control
         self.control_model.set_timestep(timestep=timestep)

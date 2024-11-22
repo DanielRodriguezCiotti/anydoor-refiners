@@ -4,17 +4,20 @@ from typing import Iterable, Literal
 import numpy as np
 from PIL import Image
 import torch
+import random
 from loguru import logger
 from pydantic import BaseModel
 from refiners.training_utils import ModelConfig, Trainer, BaseConfig, register_model
 from dataclasses import dataclass
-from anydoor_refiners.lora import build_lora, get_lora_weights
-from refiners.fluxion.utils import no_grad, save_to_safetensors
+from anydoor_refiners.lora import build_lora, get_lora_weights, set_lora_weights
+from refiners.fluxion.utils import no_grad, save_to_safetensors, load_from_safetensors, manual_seed
 from anydoor_refiners.postprocessing import post_processing
 from src.training.data.vitonhd import VitonHDDataset
 from src.anydoor_refiners.model import AnyDoor
 from torch.utils.data import DataLoader
 from refiners.training_utils.wandb import WandbLogger,WandbLoggable
+
+manual_seed(10)
 
 @dataclass
 class AnydoorBatch:
@@ -34,6 +37,7 @@ class AnydoorModelConfig(ModelConfig):
     path_to_lda : str
     lora_rank : int
     lora_scale : float
+    lora_checkpoint : str | None = None
 
 class WandbConfig(BaseModel):
     mode: Literal["online", "offline", "disabled"] = "offline"
@@ -95,6 +99,11 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         model.lda.load_from_safetensors(config.path_to_lda)
         logger.info("Building LoRA layers")
         build_lora(model, config.lora_rank, config.lora_scale)
+        if config.lora_checkpoint is not None:
+            logger.info("Loading LoRA weights")
+            lora_weights = load_from_safetensors(config.lora_checkpoint)
+            set_lora_weights(model.unet,lora_weights)
+
         logger.info("Setting LoRA layers to trainable")
         for name, param in model.named_parameters():
             if "LinearLora" in name:
@@ -110,8 +119,7 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         logger.info(f"Percetage of learnable parameters: {learnable_params / total_params * 100:.2f}%")
         return model
     
-    def q_sample(self, images: torch.Tensor,noise: torch.Tensor, step : int):
-        timestep = self.anydoor.solver.timesteps[step]
+    def q_sample(self, images: torch.Tensor,noise: torch.Tensor, timestep : int):
         scale_factor = self.anydoor.solver.cumulative_scale_factors[timestep]
         sqrt_one_minus_scale_factor = self.anydoor.solver.noise_std[timestep]
         return scale_factor * images + sqrt_one_minus_scale_factor * noise
@@ -130,13 +138,13 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         collage = batch.collage.to(self.device, self.dtype)
         batch_size = object.shape[0]
         # random integer between 0 and 1000
-        step = int(torch.randint(0, 1000, (1,)))
+        timestep = random.randint(0,999)
 
         object_embedding = self.anydoor.object_encoder.forward(object)
         noise = self.anydoor.sample_noise(size=(batch_size, 4, 64, 64), device=self.device, dtype=self.dtype)
         background_latents = self.anydoor.lda.encode(background)
-        noisy_backgrounds = self.q_sample(background_latents, noise, step)
-        predicted_noise = self.anydoor.forward(noisy_backgrounds,step=step,control_background_image=collage,object_embedding=object_embedding,training=True)
+        noisy_backgrounds = self.q_sample(background_latents, noise, timestep)
+        predicted_noise = self.anydoor.forward(noisy_backgrounds,step=timestep,control_background_image=collage,object_embedding=object_embedding,training=True)
         loss = torch.nn.functional.mse_loss(noise, predicted_noise)
         self.log({"loss": loss.item(), "epoch": self.clock.epoch ,"iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]})
         return loss
@@ -200,7 +208,13 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         
         final_images = []
         for i in range(batch_size):
-            final_images += [Image.fromarray(post_processing(np.array(predicted_images[i]),batch.background_image.numpy()[i],batch.sizes.tolist()[i],batch.background_box.tolist()[i]))]
+            generated_image = Image.fromarray(post_processing(np.array(predicted_images[i]),batch.background_image.numpy()[i],batch.sizes.tolist()[i],batch.background_box.tolist()[i]))
+            ground_truth = Image.fromarray(batch.background_image.numpy()[i])
+            concatenated_image = Image.new("RGB", (2*generated_image.width, generated_image.height))
+            concatenated_image.paste(generated_image, (0, 0))
+            concatenated_image.paste(ground_truth, (generated_image.width, 0))
+            final_images.append(concatenated_image)
+
         
         i = 0
         for image in final_images:

@@ -27,12 +27,13 @@ anydoor_config = AnydoorModelConfig(
     path_to_lda="ckpt/refiners/lda_new.safetensors",
     lora_rank=16,
     lora_scale=1.0,
+    # lora_checkpoint="ckpt/lora/anydoor-vton-adaptation/lora_noname_0_1500.safetensors"
 )
 wandb = WandbConfig(
     mode="online",
     project="anydoor-vton-adaptation",
     entity="daniel-rodriguezciotti-sicara",
-    name="kartoon",
+    name="pepe-grillo",
 )
 
 training_config = AnydoorTrainingConfig(
