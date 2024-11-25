@@ -1,23 +1,25 @@
 
 import os
-from typing import Iterable, Literal
+from typing import Any, Iterable, Literal
 import numpy as np
 from PIL import Image
 import torch
 import random
 from loguru import logger
 from pydantic import BaseModel
-from refiners.training_utils import ModelConfig, Trainer, BaseConfig, register_model
+from refiners.training_utils import ModelConfig, Trainer, BaseConfig, register_model, Callback, CallbackConfig, register_callback
+from refiners.training_utils.config import TimeValueField 
+from refiners.training_utils.common import scoped_seed
 from dataclasses import dataclass
+
+from tqdm import tqdm
 from anydoor_refiners.lora import build_lora, get_lora_weights, set_lora_weights
-from refiners.fluxion.utils import no_grad, save_to_safetensors, load_from_safetensors, manual_seed
+from refiners.fluxion.utils import no_grad, save_to_safetensors, load_from_safetensors
 from anydoor_refiners.postprocessing import post_processing
 from src.training.data.vitonhd import VitonHDDataset
 from src.anydoor_refiners.model import AnyDoor
 from torch.utils.data import DataLoader
 from refiners.training_utils.wandb import WandbLogger,WandbLoggable
-
-manual_seed(10)
 
 @dataclass
 class AnydoorBatch:
@@ -49,14 +51,20 @@ class WandbConfig(BaseModel):
     job_type: str | None = None
     notes: str | None = None
 
+class EvaluationConfig(CallbackConfig):
+    interval: TimeValueField
+    seed: int
+
 class AnydoorTrainingConfig(BaseConfig):
     train_dataset : str
     test_dataset : str
     saving_path : str
     batch_size : int 
-    checkpoint_interval : int
     anydoor : AnydoorModelConfig
     wandb : WandbConfig
+    evaluation: EvaluationConfig
+    train_lora_dataset_selection : str | None = None
+    test_lora_dataset_selection : str | None = None
 
 
 
@@ -71,14 +79,28 @@ def collate_fn(batch: list) -> AnydoorBatch | None:
         final_batch[key] = torch.stack([item[key] for item in batch])
     return AnydoorBatch(**final_batch)
 
-    
+
+
+class EvaluationCallback(Callback[Any]):
+    def __init__(self, config: EvaluationConfig) -> None:
+        self.config = config
+
+    def on_epoch_end(self, trainer: Trainer) -> None:
+        # The `is_due` method checks if the current epoch is a multiple of the interval.
+        if not trainer.clock.is_due(self.config.interval):
+            return
+
+        # The `scoped_seed` context manager encapsulates the random state for the evaluation and restores it after the 
+        # evaluation.
+        with scoped_seed(self.config.seed):
+            trainer.compute_evaluation()
 
 class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
 
 
     def __init__(self, config: AnydoorTrainingConfig):
         super().__init__(config)
-        self.test_dataset = VitonHDDataset(config.test_dataset)
+        self.test_dataloader =  DataLoader(VitonHDDataset(config.test_dataset, filtering_file=config.test_lora_dataset_selection, inference=True),batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
         self.load_wandb()
 
     def load_wandb(self) -> None:
@@ -87,6 +109,15 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
 
     def log(self, data: dict[str, WandbLoggable]) -> None:
         self.wandb.log(data=data, step=self.clock.step)
+
+    def create_data_iterable(self) -> Iterable[AnydoorBatch]:
+        dataset = VitonHDDataset(self.config.train_dataset,filtering_file=self.config.train_lora_dataset_selection)
+        dataloader = DataLoader(dataset, batch_size=self.config.batch_size, collate_fn=collate_fn)
+        return dataloader
+    
+    @register_callback()
+    def evaluation(self, config: EvaluationConfig) -> EvaluationCallback:
+        return EvaluationCallback(config)   
 
     @register_model()
     def anydoor(self,config:AnydoorModelConfig) -> AnyDoor:
@@ -124,12 +155,8 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         sqrt_one_minus_scale_factor = self.anydoor.solver.noise_std[timestep]
         return scale_factor * images + sqrt_one_minus_scale_factor * noise
 
-    def create_data_iterable(self) -> Iterable[AnydoorBatch]:
-        dataset = VitonHDDataset(self.config.train_dataset)
-        dataloader = DataLoader(dataset, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
-        return dataloader
 
-    def compute_loss(self, batch: AnydoorBatch) -> torch.Tensor:
+    def compute_loss(self, batch: AnydoorBatch, evaluation:bool = False, timestep : int | None = None) -> torch.Tensor:
 
         if batch is None:
             return torch.tensor(0.0, device=self.device, dtype=self.dtype)
@@ -138,15 +165,21 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         collage = batch.collage.to(self.device, self.dtype)
         batch_size = object.shape[0]
         # random integer between 0 and 1000
-        timestep = random.randint(0,999)
+        if timestep is None:
+            _timestep = random.randint(0,999)
+        else :
+            _timestep = timestep
+
 
         object_embedding = self.anydoor.object_encoder.forward(object)
         noise = self.anydoor.sample_noise(size=(batch_size, 4, 64, 64), device=self.device, dtype=self.dtype)
         background_latents = self.anydoor.lda.encode(background)
-        noisy_backgrounds = self.q_sample(background_latents, noise, timestep)
-        predicted_noise = self.anydoor.forward(noisy_backgrounds,step=timestep,control_background_image=collage,object_embedding=object_embedding,training=True)
+        noisy_backgrounds = self.q_sample(background_latents, noise, _timestep)
+        predicted_noise = self.anydoor.forward(noisy_backgrounds,step=_timestep,control_background_image=collage,object_embedding=object_embedding,training=True)
         loss = torch.nn.functional.mse_loss(noise, predicted_noise)
-        self.log({"loss": loss.item(), "epoch": self.clock.epoch ,"iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]})
+        # print(loss)
+        if not evaluation:
+            self.log({"loss": loss.item(), "epoch": self.clock.epoch ,"iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]})
         return loss
     
     def save_lora(self) -> None:
@@ -155,61 +188,60 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
         saving_path = self.config.saving_path
         project = self.config.wandb.project
         save_model_directory = saving_path + "/"+ project 
-        iteration = self.clock.iteration
 
         if not os.path.exists(save_model_directory):
             os.makedirs(save_model_directory)
         weights = get_lora_weights(self.anydoor.unet)
-        save_to_safetensors(path = save_model_directory + f"/lora_{training_name}_{epoch}_{iteration}.safetensors", tensors = weights)
-        logger.info(f"Saved LoRA weights to {save_model_directory} for epoch {epoch} and iteration {iteration}")
+        save_to_safetensors(path = save_model_directory + f"/lora_{training_name}_{epoch}.safetensors", tensors = weights)
+        logger.info(f"Saved LoRA weights to {save_model_directory} for epoch {epoch}")
 
     
     def log_images_to_wandb(self):
 
         logger.info("Logging images to wandb ...")
-        
-        samples = []
-        for i in range(self.config.batch_size):
-            samples += [self.test_dataset.get_sample(i, inference=True)]
-        batch = collate_fn(samples)
-        assert batch is not None
-        assert batch.background_image is not None
-        object_tensor = batch.object.to(self.device, self.dtype)
-        control_tensor = batch.collage.to(self.device, self.dtype)
-        batch_size = object_tensor.shape[0]
-
-        # Log shapes
-        logger.info(f"Object tensor shape: {object_tensor.shape}")
-        logger.info(f"Control tensor shape: {control_tensor.shape}")
-
 
         self.anydoor.set_inference_steps(50)
+        predicted_images = {}
+        i = 0
+        for batch in tqdm(self.test_dataloader):
+            assert batch is not None
+            assert batch.background_image is not None
+            object = batch.object.to(self.device, self.dtype)
+            background = batch.background.to(self.device, self.dtype)
+            collage = batch.collage.to(self.device, self.dtype)
+            batch_size = object.shape[0]
 
-        with no_grad():  
-            object_embedding = self.anydoor.object_encoder.forward(object_tensor)
-            negative_object_embedding = self.anydoor.object_encoder.forward(torch.zeros((batch_size, 3, 224, 224),device=self.device,dtype=self.dtype))
-            x = self.anydoor.sample_noise((batch_size,4,512//8, 512//8), device=self.device,dtype=self.dtype)
+            with no_grad():  
+                object_embedding = self.anydoor.object_encoder.forward(object)
+                negative_object_embedding = self.anydoor.object_encoder.forward(torch.zeros((batch_size, 3, 224, 224),device=self.device,dtype=self.dtype))
+                x = self.anydoor.sample_noise((batch_size,4,512//8, 512//8), device=self.device,dtype=self.dtype)
 
-            for step in self.anydoor.steps:
-                x = self.anydoor.forward(
-                    x,
-                    step=step,
-                    control_background_image= control_tensor,
-                    object_embedding= object_embedding,
-                    negative_object_embedding= negative_object_embedding,
-                    condition_scale= 5.0
-                )
-            
-            predicted_images = {}
-            for i in range(batch_size):
-                predicted_images[i] = self.anydoor.lda.latents_to_image(x[i].unsqueeze(0))
+                for step in self.anydoor.steps:
+                    x = self.anydoor.forward(
+                        x,
+                        step=step,
+                        control_background_image= collage,
+                        object_embedding= object_embedding,
+                        negative_object_embedding= negative_object_embedding,
+                        condition_scale= 5.0
+                    )
+                
+                background_images = batch.background_image.numpy()
+                for j in range(batch_size):
+                    i+=1
+                    predicted_images[i] = {
+                        'predicted_image' : self.anydoor.lda.latents_to_image(x[j].unsqueeze(0)),
+                        'ground_truth' : background_images[j],
+                        'sizes': batch.sizes.tolist()[j],
+                        'background_box': batch.background_box.tolist()[j]
+                    }
         
         self.anydoor.set_inference_steps(1000)
         
         final_images = []
-        for i in range(batch_size):
-            generated_image = Image.fromarray(post_processing(np.array(predicted_images[i]),batch.background_image.numpy()[i],batch.sizes.tolist()[i],batch.background_box.tolist()[i]))
-            ground_truth = Image.fromarray(batch.background_image.numpy()[i])
+        for predicted_image in predicted_images.values():
+            generated_image = Image.fromarray(post_processing(np.array(predicted_image['predicted_image']),predicted_image['ground_truth'],predicted_image['sizes'],predicted_image['background_box']))
+            ground_truth = Image.fromarray(predicted_image['ground_truth'])
             concatenated_image = Image.new("RGB", (2*generated_image.width, generated_image.height))
             concatenated_image.paste(generated_image, (0, 0))
             concatenated_image.paste(ground_truth, (generated_image.width, 0))
@@ -222,12 +254,19 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnydoorBatch]):
             i += 1
 
 
-    def checkpoint(self) -> None:
+    def compute_evaluation(self) -> None:
         self.save_lora()
         self.log_images_to_wandb()
+        loss_records = []
+        for batch in self.test_dataloader:
+            logger.info("Computing evaluation loss")
+            for timestep in tqdm(np.linspace(0,999,10)):
+                with no_grad():
+                    loss = self.compute_loss(batch, evaluation=True, timestep=int(timestep))
+                    loss_records += [{"loss": loss.item(), "timestep": timestep, "epoch": self.clock.epoch}]
+        agg_loss = sum([record["loss"] for record in loss_records]) / len(loss_records)
+        self.log({"evaluation_loss": agg_loss, "epoch": self.clock.epoch})
 
-    def step(self, batch) -> None:
-        """Perform a single training step."""
-        super().step(batch)
-        if self.clock.iteration % self.config.checkpoint_interval == 0:
-            self.checkpoint()
+
+
+

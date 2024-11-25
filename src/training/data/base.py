@@ -118,7 +118,7 @@ class BaseDataset(Dataset):
         masked_ref_image = masked_ref_image[y1:y2,x1:x2,:]
         ref_mask = ref_mask[y1:y2,x1:x2]
 
-        ratio = np.random.randint(11, 15) / 10 
+        ratio = np.random.randint(11, 12) / 10 
         masked_ref_image, ref_mask = expand_image_mask(masked_ref_image, ref_mask, ratio=ratio)
         ref_mask_3 = np.stack([ref_mask,ref_mask,ref_mask],-1)
 
@@ -134,7 +134,7 @@ class BaseDataset(Dataset):
         #masked_ref_image_aug = self.aug_data(masked_ref_image) 
         
         # Getting for high-freqency map
-        masked_ref_image_compose, ref_mask_compose =  self.aug_data_mask(masked_ref_image, ref_mask) 
+        masked_ref_image_compose, ref_mask_compose = masked_ref_image, ref_mask
         masked_ref_image_aug = masked_ref_image_compose.copy()
 
         ref_mask_3 = np.stack([ref_mask_compose,ref_mask_compose,ref_mask_compose],-1)

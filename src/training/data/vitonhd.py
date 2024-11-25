@@ -5,15 +5,25 @@ import torch
 from PIL import Image 
 from .base import BaseDataset
 class VitonHDDataset(BaseDataset):
-    def __init__(self, image_dir):
+    def __init__(self, image_dir, filtering_file = None, inference = False):
         self.image_root = image_dir
         self.data = os.listdir(self.image_root)
+        if filtering_file is not None:
+            self.filter_data(filtering_file)
         self.size = (512,512)
         self.clip_size = (224,224)
         self.dynamic = 2
+        self.inference = inference
+    
+    def filter_data(self, filtering_file):
+        with open(filtering_file, "r") as f:
+            lines = f.readlines()
+        labelled_values = {line.split(",")[0]: line.split(",")[1].strip() for line in lines}
+        images_to_keep = [ image for image,label in labelled_values.items() if label == "True"]
+        self.data = [image for image in self.data if image in images_to_keep]
 
     def __len__(self):
-        return 20000
+        return len(self.data)
 
     def check_region_size(self, image, yyxx, ratio, mode = 'max'):
         pass_flag = True
@@ -29,7 +39,7 @@ class VitonHDDataset(BaseDataset):
                 pass_flag = False
         return pass_flag
             
-    def get_sample(self, idx, inference = False):
+    def get_sample(self, idx):
 
         ref_image_path = os.path.join(self.image_root, self.data[idx])
         tar_image_path = ref_image_path.replace('/cloth/', '/image/')
@@ -67,9 +77,14 @@ class VitonHDDataset(BaseDataset):
             time_steps=torch.from_numpy(sampled_time_steps),
         )
 
-        if inference:
+        if self.inference:
             batch["background_image"] = torch.from_numpy(tar_image)
             return batch
         else:
             return batch
 
+
+
+if __name__ == "__main__":
+    dataset = VitonHDDataset("dataset/train/cloth", filtering_file="dataset/lora_training_images.txt")
+    print(len(dataset))

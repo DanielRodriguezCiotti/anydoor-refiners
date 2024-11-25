@@ -1,4 +1,4 @@
-from src.training.trainer import AnydoorModelConfig, AnydoorTrainingConfig, AnyDoorLoRATrainer, WandbConfig
+from src.training.trainer import AnydoorModelConfig, AnydoorTrainingConfig, AnyDoorLoRATrainer, EvaluationConfig, WandbConfig
 from refiners.training_utils import TrainingConfig, OptimizerConfig, LRSchedulerConfig, Epoch, Optimizers, LRSchedulerType
 import torch
 
@@ -6,7 +6,7 @@ torch.set_num_threads(2)
 
 
 training = TrainingConfig(
-    duration=Epoch(10),
+    duration=Epoch(50),
     device="cuda" if torch.cuda.is_available() else "cpu",
     dtype="float32",
 )
@@ -17,7 +17,7 @@ optimizer = OptimizerConfig(
 )
 
 lr_scheduler = LRSchedulerConfig(
-    type=LRSchedulerType.CONSTANT_LR,
+    type=LRSchedulerType.COSINE_ANNEALING_LR,
 )
 
 anydoor_config = AnydoorModelConfig(
@@ -33,20 +33,28 @@ wandb = WandbConfig(
     mode="online",
     project="anydoor-vton-adaptation",
     entity="daniel-rodriguezciotti-sicara",
-    name="pepe-grillo",
+    name="curly-split",
+)
+
+evaluation = EvaluationConfig(
+    interval = Epoch(1),
+    seed = 42
 )
 
 training_config = AnydoorTrainingConfig(
     train_dataset='dataset/train/cloth',
+    train_lora_dataset_selection= 'dataset/lora_training_images.txt',
     test_dataset='dataset/test/cloth',
+    test_lora_dataset_selection='dataset/lora_test_images.txt',
     batch_size=5,
-    checkpoint_interval=500,
+    # checkpoint_interval=500,
     saving_path='ckpt/lora',
     wandb=wandb,
     anydoor=anydoor_config,
     training=training,
     optimizer=optimizer,
-    lr_scheduler=lr_scheduler
+    lr_scheduler=lr_scheduler,
+    evaluation  = evaluation
 )
 trainer = AnyDoorLoRATrainer(training_config)
 trainer.train()
