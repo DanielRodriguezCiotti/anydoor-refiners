@@ -1,4 +1,5 @@
-from src.training.trainer import AnydoorModelConfig, AnydoorTrainingConfig, AnyDoorLoRATrainer, EvaluationConfig, WandbConfig
+from src.training.configs import AnydoorModelConfig, WandbConfig, EvaluationConfig, AnydoorTrainingConfig
+from src.training.trainer import AnyDoorLoRATrainer
 from refiners.training_utils import TrainingConfig, OptimizerConfig, LRSchedulerConfig, Epoch, Optimizers, LRSchedulerType
 import torch
 
@@ -6,7 +7,7 @@ torch.set_num_threads(2)
 
 
 training = TrainingConfig(
-    duration=Epoch(50),
+    duration=Epoch(20),
     device="cuda" if torch.cuda.is_available() else "cpu",
     dtype="float32",
 )
@@ -33,7 +34,7 @@ wandb = WandbConfig(
     mode="online",
     project="anydoor-vton-adaptation",
     entity="daniel-rodriguezciotti-sicara",
-    name="curly-split",
+    name="kenzo",
 )
 
 evaluation = EvaluationConfig(
@@ -47,6 +48,7 @@ training_config = AnydoorTrainingConfig(
     test_dataset='dataset/test/cloth',
     test_lora_dataset_selection='dataset/lora_test_images.txt',
     batch_size=5,
+    loss_type='l2',
     # checkpoint_interval=500,
     saving_path='ckpt/lora',
     wandb=wandb,

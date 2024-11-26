@@ -23,6 +23,8 @@ albucore==0.0.20
     # via albumentations
 albumentations==1.4.21
     # via anydoor-refiners
+altair==5.5.0
+    # via streamlit
 annotated-types==0.7.0
     # via pydantic
 antlr4-python3-runtime==4.9.3
@@ -41,6 +43,8 @@ attrs==24.2.0
     # via referencing
 bitsandbytes==0.44.1
     # via refiners
+blinker==1.9.0
+    # via streamlit
 boto3==1.35.65
     # via neptune
 botocore==1.35.65
@@ -50,6 +54,8 @@ bravado==11.0.3
     # via neptune
 bravado-core==6.1.1
     # via bravado
+cachetools==5.5.0
+    # via streamlit
 certifi==2024.8.30
     # via httpcore
     # via httpx
@@ -59,6 +65,7 @@ charset-normalizer==3.4.0
     # via requests
 click==8.1.7
     # via neptune
+    # via streamlit
     # via typer
     # via uvicorn
     # via wandb
@@ -115,6 +122,7 @@ gitdb==4.0.11
 gitpython==3.1.43
     # via neptune
     # via refiners
+    # via streamlit
     # via wandb
 gradio==5.5.0
     # via anydoor-refiners
@@ -158,7 +166,9 @@ jaxtyping==0.2.34
 jedi==0.19.1
     # via ipython
 jinja2==3.1.4
+    # via altair
     # via gradio
+    # via pydeck
     # via torch
 jmespath==1.0.1
     # via boto3
@@ -168,6 +178,7 @@ jsonpointer==3.0.0
 jsonref==1.1.0
     # via bravado-core
 jsonschema==4.23.0
+    # via altair
     # via bravado-core
     # via swagger-spec-validator
 jsonschema-specifications==2024.10.1
@@ -210,6 +221,8 @@ multidict==6.1.0
     # via yarl
 multiprocess==0.70.16
     # via datasets
+narwhals==1.14.2
+    # via altair
 neptune==1.13.0
     # via refiners
 nest-asyncio==1.6.0
@@ -227,8 +240,10 @@ numpy==2.1.2
     # via opencv-python
     # via opencv-python-headless
     # via pandas
+    # via pydeck
     # via refiners
     # via scipy
+    # via streamlit
     # via torchmetrics
     # via torchvision
     # via xformers
@@ -274,6 +289,7 @@ opencv-python-headless==4.10.0.84
 orjson==3.10.11
     # via gradio
 packaging==24.1
+    # via altair
     # via datasets
     # via gradio
     # via gradio-client
@@ -285,11 +301,13 @@ packaging==24.1
     # via pytest
     # via pytorch-lightning
     # via refiners
+    # via streamlit
     # via torchmetrics
 pandas==2.2.3
     # via datasets
     # via gradio
     # via neptune
+    # via streamlit
 parso==0.8.4
     # via jedi
 pexpect==4.9.0
@@ -299,6 +317,7 @@ pillow==11.0.0
     # via matplotlib
     # via neptune
     # via refiners
+    # via streamlit
     # via torchvision
 platformdirs==4.3.6
     # via jupyter-core
@@ -312,6 +331,7 @@ prompt-toolkit==3.0.48
 propcache==0.2.0
     # via yarl
 protobuf==5.28.3
+    # via streamlit
     # via wandb
 psutil==6.1.0
     # via ipykernel
@@ -323,6 +343,7 @@ pure-eval==0.2.3
     # via stack-data
 pyarrow==18.0.0
     # via datasets
+    # via streamlit
 pydantic==2.9.2
     # via albumentations
     # via fastapi
@@ -330,6 +351,8 @@ pydantic==2.9.2
     # via refiners
 pydantic-core==2.23.4
     # via pydantic
+pydeck==0.9.1
+    # via streamlit
 pydub==0.25.1
     # via gradio
 pygments==2.18.0
@@ -373,7 +396,7 @@ pyzmq==26.2.0
 referencing==0.35.1
     # via jsonschema
     # via jsonschema-specifications
-refiners @ git+https://github.com/finegrain-ai/refiners.git@79c9991cfa34ed3e5b88cb30f6d2e27759bdea67
+refiners @ git+https://github.com/finegrain-ai/refiners.git@346a0fb5752150c4feb7b73dfe52674ccc9d41d2
     # via anydoor-refiners
 requests==2.32.3
     # via bravado
@@ -382,6 +405,7 @@ requests==2.32.3
     # via huggingface-hub
     # via neptune
     # via requests-oauthlib
+    # via streamlit
     # via wandb
 requests-oauthlib==2.0.0
     # via neptune
@@ -390,6 +414,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
     # via jsonschema
 rich==13.9.4
+    # via streamlit
     # via typer
 rpds-py==0.21.0
     # via jsonschema
@@ -439,6 +464,8 @@ stack-data==0.6.3
 starlette==0.41.2
     # via fastapi
     # via gradio
+streamlit==1.40.1
+    # via anydoor-refiners
 stringzilla==3.10.10
     # via albucore
 swagger-spec-validator==3.0.4
@@ -446,6 +473,10 @@ swagger-spec-validator==3.0.4
     # via neptune
 sympy==1.13.1
     # via torch
+tenacity==9.0.0
+    # via streamlit
+toml==0.10.2
+    # via streamlit
 tomli==2.1.0
     # via refiners
 tomlkit==0.12.0
@@ -464,6 +495,7 @@ torchvision==0.20.1
 tornado==6.4.1
     # via ipykernel
     # via jupyter-client
+    # via streamlit
 tqdm==4.66.5
     # via anydoor-refiners
     # via datasets
@@ -486,6 +518,7 @@ typer==0.13.0
 types-python-dateutil==2.9.0.20241003
     # via arrow
 typing-extensions==4.12.2
+    # via altair
     # via bravado
     # via fastapi
     # via gradio
@@ -497,6 +530,7 @@ typing-extensions==4.12.2
     # via pydantic
     # via pydantic-core
     # via pytorch-lightning
+    # via streamlit
     # via swagger-spec-validator
     # via torch
     # via typer
@@ -514,6 +548,8 @@ uvicorn==0.32.0
     # via gradio
 wandb==0.18.7
     # via refiners
+watchdog==6.0.0
+    # via streamlit
 wcwidth==0.2.13
     # via prompt-toolkit
 webcolors==24.11.1

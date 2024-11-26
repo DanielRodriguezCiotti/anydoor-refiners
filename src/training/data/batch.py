@@ -1,0 +1,24 @@
+from dataclasses import dataclass
+import torch
+
+
+@dataclass
+class AnyDoorBatch:
+    object : torch.Tensor
+    background : torch.Tensor
+    collage : torch.Tensor
+    background_box : torch.Tensor
+    sizes : torch.Tensor
+    time_steps : torch.Tensor
+    background_image : torch.Tensor | None = None
+
+
+def collate_fn(batch: list) -> AnyDoorBatch | None:
+    # Filter out None entries
+    batch = [item for item in batch if item is not None]
+    if len(batch) == 0:
+        return None
+    final_batch = {}
+    for key in batch[0].keys():
+        final_batch[key] = torch.stack([item[key] for item in batch])
+    return AnyDoorBatch(**final_batch)
