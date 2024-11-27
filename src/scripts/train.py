@@ -26,7 +26,7 @@ anydoor_config = AnydoorModelConfig(
     path_to_control_model="ckpt/refiners/controlnet.safetensors",
     path_to_object_encoder="ckpt/refiners/dinov2_encoder.safetensors",
     path_to_lda="ckpt/refiners/lda_new.safetensors",
-    lora_rank=16,
+    lora_rank=32,
     lora_scale=1.0,
     # lora_checkpoint="ckpt/lora/anydoor-vton-adaptation/lora_noname_0_1500.safetensors"
 )
@@ -47,7 +47,7 @@ training_config = AnydoorTrainingConfig(
     train_lora_dataset_selection= 'dataset/lora_training_images.txt',
     test_dataset='dataset/test/cloth',
     test_lora_dataset_selection='dataset/lora_test_images.txt',
-    batch_size=5,
+    batch_size=4,
     loss_type='l2',
     # checkpoint_interval=500,
     saving_path='ckpt/lora',
