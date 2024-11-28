@@ -9,7 +9,7 @@ from tqdm import tqdm
 from anydoor_refiners.lora import build_lora, set_lora_weights
 from refiners.fluxion.utils import no_grad, load_from_safetensors
 from anydoor_refiners.postprocessing import post_processing
-from src.training.data.vitonhd import VitonHDDataset
+from src.training.data.vitonhd import CustomDataLoader, VitonHDDataset
 from src.anydoor_refiners.model import AnyDoor
 from torch.utils.data import DataLoader
 from refiners.training_utils.clock import TrainingClock
@@ -51,7 +51,7 @@ class AnyDoorLoraEvaluator:
             filtering_file=self.config.test_lora_dataset_selection,
             inference=True,
         )
-        dataloader = DataLoader(
+        dataloader = CustomDataLoader(
             dataset,
             batch_size=self.config.batch_size,
             collate_fn=collate_fn,
@@ -95,7 +95,7 @@ class AnyDoorLoraEvaluator:
             )
             background_latents = self.anydoor.lda.encode(background)
             noisy_backgrounds = self.q_sample(background_latents, noise, timestep)   
-            predicted_noise = self.anydoor.forward(
+            predicted_noise, loss = self.anydoor.forward(
                 noisy_backgrounds,
                 step=timestep,
                 control_background_image=collage,

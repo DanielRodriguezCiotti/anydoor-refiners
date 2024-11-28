@@ -8,7 +8,7 @@ from loguru import logger
 from refiners.training_utils import Trainer,  register_model, Callback,register_callback
 from anydoor_refiners.lora import build_lora, get_lora_weights, set_lora_weights
 from refiners.fluxion.utils import save_to_safetensors, load_from_safetensors
-from src.training.data.vitonhd import VitonHDDataset
+from src.training.data.vitonhd import CustomDataLoader, VitonHDDataset
 from src.anydoor_refiners.model import AnyDoor
 from torch.utils.data import DataLoader
 from refiners.training_utils.wandb import WandbLogger,WandbLoggable
@@ -35,7 +35,7 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnyDoorBatch]):
     def __init__(self, config: AnydoorTrainingConfig):
         self.use_atv_loss = config.use_atv_loss
         super().__init__(config)
-        self.test_dataloader =  DataLoader(VitonHDDataset(config.test_dataset, filtering_file=config.test_lora_dataset_selection, inference=True),batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
+        self.test_dataloader =  CustomDataLoader(VitonHDDataset(config.test_dataset, filtering_file=config.test_lora_dataset_selection, inference=True),batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
         self.load_wandb()
         self.load_evaluator()
         self.last_lora_checkpoint = None

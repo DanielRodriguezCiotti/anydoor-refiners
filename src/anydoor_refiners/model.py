@@ -181,7 +181,7 @@ class AnyDoor(fl.Module):
                 object_embedding=negative_object_embedding,
                 control_features=control
             )
-            unconditionned_predicted_noise = self.unet(latents)
+            unconditionned_predicted_noise, _ = self.unet(latents)
             predicted_noise = unconditionned_predicted_noise + condition_scale * (
                 predicted_noise - unconditionned_predicted_noise
             )
