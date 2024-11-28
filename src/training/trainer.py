@@ -33,6 +33,7 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnyDoorBatch]):
 
 
     def __init__(self, config: AnydoorTrainingConfig):
+        self.use_atv_loss = config.use_atv_loss
         super().__init__(config)
         self.test_dataloader =  DataLoader(VitonHDDataset(config.test_dataset, filtering_file=config.test_lora_dataset_selection, inference=True),batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
         self.load_wandb()
@@ -73,7 +74,7 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnyDoorBatch]):
     @register_model()
     def anydoor(self,config:AnydoorModelConfig) -> AnyDoor:
         logger.info("Building AnyDoor model")
-        model = AnyDoor(num_inference_steps = 1000,device=self.device, dtype=self.dtype)
+        model = AnyDoor(num_inference_steps = 1000, use_tv_loss=self.use_atv_loss,device=self.device, dtype=self.dtype)
         logger.info("Loading weights")
         model.unet.load_from_safetensors(config.path_to_unet)
         model.control_model.load_from_safetensors(config.path_to_control_model)
@@ -117,19 +118,35 @@ class AnyDoorLoRATrainer(Trainer[AnydoorTrainingConfig, AnyDoorBatch]):
         batch_size = object.shape[0]
         timestep = random.randint(0,999)
 
+
+
         object_embedding = self.anydoor.object_encoder.forward(object)
         noise = self.anydoor.sample_noise(size=(batch_size, 4, 64, 64), device=self.device, dtype=self.dtype)
         background_latents = self.anydoor.lda.encode(background)
         noisy_backgrounds = self.q_sample(background_latents, noise, timestep)
-        predicted_noise = self.anydoor.forward(noisy_backgrounds,step=timestep,control_background_image=collage,object_embedding=object_embedding,training=True)
+        if self.use_atv_loss:
+            assert batch.loss_mask is not None, "Loss mask is required"
+            loss_mask = batch.loss_mask.to(self.device, self.dtype)
+            predicted_noise, atv_loss = self.anydoor.forward(noisy_backgrounds,step=timestep,control_background_image=collage,object_embedding=object_embedding,training=True, loss_mask=loss_mask)
+        else:
+            predicted_noise, atv_loss = self.anydoor.forward(noisy_backgrounds,step=timestep,control_background_image=collage,object_embedding=object_embedding,training=True)
         if self.config.loss_type == "l2":
             loss = torch.norm(noise - predicted_noise, p=2)
         elif self.config.loss_type == "mse":
-            loss = torch.nn.functional.mse_loss(noise, predicted_noise)
+            loss = torch.nn.functional.mse_loss(noise, predicted_noise) # type: ignore
         else:
             raise ValueError(f"Invalid loss type {self.config.loss_type}")
+        
+        dict_to_log = { self.config.loss_type : loss.item(),"epoch": self.clock.epoch ,"iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]}
 
-        self.log({"loss": loss.item(), "epoch": self.clock.epoch ,"iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]})
+        if self.use_atv_loss:
+            logger.info(f"ATV loss: {atv_loss.item()}")
+            dict_to_log["atv_loss"] = atv_loss.item()
+            loss += atv_loss
+
+        dict_to_log["loss"] = loss.item()
+
+        self.log(dict_to_log)
         return loss
     
     def save_lora(self) -> None:

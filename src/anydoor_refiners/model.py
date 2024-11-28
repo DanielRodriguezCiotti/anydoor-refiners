@@ -27,6 +27,7 @@ class AnyDoor(fl.Module):
     def __init__(
         self,
         num_inference_steps: int = 50,
+        use_tv_loss : bool = False,
         device: Device | str = "cpu",
         dtype: DType = torch.float32,
     ) -> None:
@@ -34,8 +35,9 @@ class AnyDoor(fl.Module):
         self.device: Device = (
             device if isinstance(device, Device) else Device(device=device)
         )
+        self.use_tv_loss = use_tv_loss
         self.dtype = dtype
-        self.unet = UNet(4).to(device=self.device, dtype=self.dtype)
+        self.unet = UNet(4,use_tv_loss=use_tv_loss).to(device=self.device, dtype=self.dtype)
         self.lda = AnydoorAutoencoder().to(device=self.device, dtype=self.dtype)
         self.object_encoder = DINOv2Encoder().to(device=self.device, dtype=self.dtype)
         self.control_model = ControlNet(4).to(device=self.device, dtype=self.dtype)
@@ -122,6 +124,7 @@ class AnyDoor(fl.Module):
         timestep: Tensor,
         object_embedding: Tensor,
         control_features: list[Tensor],
+        loss_mask : Tensor | None = None,
     ) -> None:
         """Set the various context parameters required by the U-Net model.
 
@@ -132,6 +135,10 @@ class AnyDoor(fl.Module):
         self.unet.set_timestep(timestep=timestep)
         self.unet.set_dinov2_object_embedding(dinov2_object_embedding=object_embedding)
         self.unet.set_control_residuals(residuals=control_features)
+        if loss_mask is not None:
+            self.unet.set_mask_context(mask=loss_mask)
+        if self.use_tv_loss:
+            self.unet.set_atv_loss(value= torch.tensor(0.0).to(device=self.device, dtype=self.dtype))
 
     def forward(
         self,
@@ -140,9 +147,10 @@ class AnyDoor(fl.Module):
         control_background_image : Tensor,
         object_embedding : Tensor,
         negative_object_embedding : Tensor | None = None,
+        loss_mask : Tensor | None = None,
         condition_scale: float = 1.0,
         training: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | tuple[Tensor, Tensor]:
         # Init variables
         latents = x
         if training :
@@ -161,10 +169,11 @@ class AnyDoor(fl.Module):
             timestep=timestep,
             object_embedding=object_embedding,
             control_features=control,
+            loss_mask=loss_mask,
         )
-        predicted_noise = self.unet(latents)
+        predicted_noise, loss = self.unet(latents)
         if training:
-            return predicted_noise
+            return predicted_noise,loss
 
         if condition_scale != 1.0 and negative_object_embedding is not None:
             self.set_unet_context(

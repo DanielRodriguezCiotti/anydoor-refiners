@@ -4,6 +4,7 @@ from torch import Tensor, device as Device, dtype as DType
 
 import refiners.fluxion.layers as fl
 from refiners.fluxion.context import Contexts
+import torch
 from src.anydoor_refiners.attention import (
     CrossAttentionBlock2d,
 )
@@ -36,6 +37,7 @@ class DinoV2CrossAttention(CrossAttentionBlock2d):
         self,
         channels: int,
         nb_heads: int,
+        use_attention_tv_loss: bool = False,
         device: Device | str | None = None,
         dtype: DType | None = None,
     ) -> None:
@@ -48,6 +50,7 @@ class DinoV2CrossAttention(CrossAttentionBlock2d):
             num_groups=32,
             use_bias=False,
             use_linear_projection=True,
+            use_attention_tv_loss=use_attention_tv_loss,
             device=device,
             dtype=dtype,
         )
@@ -151,6 +154,7 @@ class DownBlocks(fl.Chain):
 class UpBlocks(fl.Chain):
     def __init__(
         self,
+        use_tv_loss: bool = False,
         device: Device | str | None = None,
         dtype: DType | None = None,
     ) -> None:
@@ -201,7 +205,7 @@ class UpBlocks(fl.Chain):
                     in_channels=1920, out_channels=640, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=640, nb_heads=10, device=device, dtype=dtype
+                    channels=640, nb_heads=10,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
             ),
             fl.Chain(
@@ -209,7 +213,7 @@ class UpBlocks(fl.Chain):
                     in_channels=1280, out_channels=640, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=640, nb_heads=10, device=device, dtype=dtype
+                    channels=640, nb_heads=10,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
             ),
             fl.Chain(
@@ -217,7 +221,7 @@ class UpBlocks(fl.Chain):
                     in_channels=960, out_channels=640, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=640, nb_heads=10, device=device, dtype=dtype
+                    channels=640, nb_heads=10,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
                 fl.Upsample(channels=640, device=device, dtype=dtype),
             ),
@@ -226,7 +230,7 @@ class UpBlocks(fl.Chain):
                     in_channels=960, out_channels=320, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=320, nb_heads=5, device=device, dtype=dtype
+                    channels=320, nb_heads=5,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
             ),
             fl.Chain(
@@ -234,7 +238,7 @@ class UpBlocks(fl.Chain):
                     in_channels=640, out_channels=320, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=320, nb_heads=5, device=device, dtype=dtype
+                    channels=320, nb_heads=5,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
             ),
             fl.Chain(
@@ -242,7 +246,7 @@ class UpBlocks(fl.Chain):
                     in_channels=640, out_channels=320, device=device, dtype=dtype
                 ),
                 DinoV2CrossAttention(
-                    channels=320, nb_heads=5, device=device, dtype=dtype
+                    channels=320, nb_heads=5,use_attention_tv_loss = use_tv_loss, device=device, dtype=dtype
                 ),
             ),
         )
@@ -297,6 +301,7 @@ class UNet(fl.Chain):
     def __init__(
         self,
         in_channels: int,
+        use_tv_loss: bool = False,
         device: Device | str | None = None,
         dtype: DType | None = None,
     ) -> None:
@@ -315,7 +320,7 @@ class UNet(fl.Chain):
                 fl.UseContext(context="unet", key="residuals").compose(lambda x: x[-1]),
                 MiddleBlock(device=device, dtype=dtype),
             ),
-            UpBlocks(device=device, dtype=dtype),
+            UpBlocks(use_tv_loss = use_tv_loss,device=device, dtype=dtype),
             fl.Chain(
                 fl.GroupNorm(channels=320, num_groups=32, device=device, dtype=dtype),
                 fl.SiLU(),
@@ -328,6 +333,10 @@ class UNet(fl.Chain):
                     device=device,
                     dtype=dtype,
                 ),
+            ),
+            fl.Parallel(
+                fl.Identity(),
+                fl.UseContext(context="atv_loss", key="value"),
             ),
         )
         for residual_block in self.layers(ResidualBlock):
@@ -352,6 +361,8 @@ class UNet(fl.Chain):
             "diffusion": {"timestep": None},
             "range_adapter": {"timestep_embedding": None},
             "sampling": {"shapes": []},
+            "masks": {"tv_loss_mask": torch.tensor(0.0, device=self.device, dtype=self.dtype)},
+            "atv_loss": {"value": torch.tensor(0.0, device=self.device, dtype=self.dtype)}
         }
 
     def set_dinov2_object_embedding(self, dinov2_object_embedding: Tensor) -> None:
@@ -386,3 +397,19 @@ class UNet(fl.Chain):
             residuals: The control residuals.
         """
         self.set_context("control", {"residuals": residuals})
+
+    def set_mask_context(self, mask: Tensor) -> None:
+        """Set the mask context.
+
+        Args:
+            mask: The mask.
+        """
+        self.set_context("masks", {"tv_loss_mask": mask})
+
+    def set_atv_loss(self, value: Tensor) -> None:
+        """Set the atv loss value.
+
+        Args:
+            value: The atv loss value.
+        """
+        self.set_context("atv_loss", {"value": value})

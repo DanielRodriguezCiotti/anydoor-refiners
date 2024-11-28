@@ -6,6 +6,36 @@ from PIL import Image
 
 from anydoor_refiners.preprocessing import preprocess_images 
 from .base import BaseDataset
+
+def load_mask_and_resize(mask_path):
+    """
+    Load a mask image from the given path, convert it to a binary tensor,
+    and resize it to 64x64 dimensions.
+    
+    Args:
+        mask_path (str): Path to the mask image file.
+    
+    Returns:
+        torch.Tensor: Binary tensor of shape (1, 64, 64) with values 0 or 1.
+    """
+    # Load the mask image
+    mask_image = Image.open(mask_path).convert("L")  # Convert to grayscale
+    
+    # Resize the image to 64x64
+    resized_mask = mask_image.resize((64, 64))
+    
+    # Convert to a numpy array
+    mask_array = np.array(resized_mask)
+    
+    # Binarize the array (values 0 or 1)
+    binary_mask = (mask_array > 128).astype(np.float32)  # Thresholding at 128
+    
+    # Convert to a PyTorch tensor and add a channel dimension
+    binary_tensor = torch.tensor(binary_mask).unsqueeze(0)  # Shape: (1, 64, 64)
+    
+    return binary_tensor
+
+
 class VitonHDDataset(BaseDataset):
     def __init__(self, image_dir, filtering_file = None, inference = False):
         self.image_root = image_dir
@@ -48,6 +78,7 @@ class VitonHDDataset(BaseDataset):
         tar_image_path = ref_image_path.replace('/cloth/', '/image/')
         ref_mask_path = ref_image_path.replace('/cloth/','/cloth-mask/')
         tar_mask_path = ref_image_path.replace('/cloth/', '/image-parse-v3/').replace('.jpg','.png')
+        warped_cloth_mask_path = ref_image_path.replace('/cloth/', '/gt_cloth_warped_mask/')
 
         # Read Image and Mask
         ref_image = cv2.imread(ref_image_path)
@@ -85,6 +116,7 @@ class VitonHDDataset(BaseDataset):
             batch["background_image"] = torch.from_numpy(tar_image)
             return batch
         else:
+            batch["loss_mask"] = load_mask_and_resize(warped_cloth_mask_path)
             return batch
 
 

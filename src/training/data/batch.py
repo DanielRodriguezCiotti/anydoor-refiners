@@ -11,6 +11,7 @@ class AnyDoorBatch:
     background_box : torch.Tensor
     sizes : torch.Tensor
     background_image : torch.Tensor | None = None
+    loss_mask : torch.Tensor | None = None
 
 
 def collate_fn(batch: list) -> AnyDoorBatch | None:

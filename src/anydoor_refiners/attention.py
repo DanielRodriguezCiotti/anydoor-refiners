@@ -6,6 +6,7 @@ The only difference is the Lambda functions that ensure contiguous tensors as th
 """
 
 from torch import Size, Tensor, device as Device, dtype as DType
+import torch
 from jaxtyping import Float
 from refiners.fluxion.context import Contexts
 from refiners.fluxion.layers import (
@@ -28,6 +29,8 @@ from refiners.fluxion.layers import (
     Unflatten,
     UseContext,
     Lambda,
+    ContextModule,
+    Distribute
 )
 
 try:
@@ -38,12 +41,35 @@ try:
 except:  # noqa: E722
     XFORMERS_IS_AVAILBLE = False
 
+@torch.no_grad()
+def attn_mask_resize(m,h,w):
+    """
+    m : [BS x 1 x mask_h x mask_w] => downsample, reshape and bool, [BS x h x w]
+    """  
+    m = torch.nn.functional.interpolate(m, (h, w)).squeeze(1).contiguous()
+    m = torch.where(m>=0.5, True, False)
+    return m
 
-class XformersScaledDotProductAttention(ScaledDotProductAttention):
+def get_tvloss(coords, mask, ch, cw):
+    b, n, _ = coords.shape
+    coords = coords.reshape(b,ch,cw,2)
+    mask = mask.unsqueeze(-1)
+    y_mask = mask[:,1:] * mask[:,:-1]
+    x_mask = mask[:,:,1:] * mask[:,:,:-1]
+    
+    y_tvloss = torch.abs(coords[:,1:] - coords[:,:-1]) * y_mask
+    x_tvloss = torch.abs(coords[:,:,1:] - coords[:,:,:-1]) * x_mask
+    tv_loss = y_tvloss.sum() / y_mask.sum() + x_tvloss.sum() / x_mask.sum()
+    return tv_loss
 
-    def __init__(self, head_dimension: int, num_heads: int) -> None:
+class XformersScaledDotProductAttention(ScaledDotProductAttention, ContextModule):
+
+
+    def __init__(self, head_dimension: int, num_heads: int, use_attention_tv_loss:bool=False) -> None:
         self.head_dimension = head_dimension
+        self.use_attention_tv_loss = use_attention_tv_loss
         super().__init__(num_heads=num_heads)
+
 
     # Override the base class method to use the xformers implementation
     def forward(
@@ -51,6 +77,7 @@ class XformersScaledDotProductAttention(ScaledDotProductAttention):
         query: Float[Tensor, "batch num_queries embedding_dim"],  # noqa: F722
         key: Float[Tensor, "batch num_keys embedding_dim"],  # noqa: F722
         value: Float[Tensor, "batch num_values embedding_dim"],  # noqa: F722
+        tv_loss_mask: Float[Tensor, "batch num_values embedding_dim"] | None = None  # noqa: F722
     ) -> Float[Tensor, "batch num_queries embedding_dim"]:  # noqa: F722
         """Compute the scaled dot product attention.
 
@@ -90,6 +117,34 @@ class XformersScaledDotProductAttention(ScaledDotProductAttention):
                 self.head_dimension * self.num_heads,
             )
         )
+
+        if self.use_attention_tv_loss  and tv_loss_mask is not None:
+            # print("Using attention tv loss")
+            sim = torch.einsum('b i d, b j d -> b i j', q_heads, k_heads) * (self.head_dimension ** -0.5)
+            sim = sim.softmax(dim=-1)
+            # print(torch.norm(sim))
+            h = self.num_heads
+            _, HW, hw = sim.shape
+            S = int(HW ** 0.5)
+            s = int(hw ** 0.5)
+            
+            tv_loss_mask = attn_mask_resize(tv_loss_mask, S, S)  # [BS x H x W]
+            # print("tv_loss_mask ",torch.sum(tv_loss_mask))
+            reshaped_sim = sim.reshape(-1, h, S*S, s, s).mean(dim=1) 
+            # print("reshaped_sim ",torch.norm(reshaped_sim))
+            linspace = torch.linspace(0,s-1,s, device=sim.device)
+            grid_h, grid_w = torch.meshgrid(linspace, linspace)
+            grid_hw = torch.stack([grid_h, grid_w])
+            
+            weighted_grid_hw = reshaped_sim.unsqueeze(2) * grid_hw.unsqueeze(0).unsqueeze(0)  # [b HW 2 h w]
+            weighted_centered_grid_hw = weighted_grid_hw.sum((-2,-1))  # [b HW 2]
+
+            # print("weighted_centered_grid_hw ",torch.norm(weighted_centered_grid_hw))
+            tv_loss = get_tvloss(weighted_centered_grid_hw, ~tv_loss_mask, ch=s, cw=s)
+            attn_loss = tv_loss * 0.001
+            context = self.use_context("atv_loss")
+            context.update({"value":attn_loss + context["value"]})
+
         return attention_output
 
 
@@ -193,6 +248,8 @@ class CrossAttentionBlock2d(Residual):
         channels: int,
         context_embedding_dim: int,
         context_key: str,
+        mask_key: str = "tv_loss_mask",
+        use_attention_tv_loss: bool = False,
         num_attention_heads: int = 1,
         num_attention_layers: int = 1,
         num_groups: int = 32,
@@ -213,6 +270,8 @@ class CrossAttentionBlock2d(Residual):
         self.num_groups = num_groups
         self.use_bias = use_bias
         self.context_key = context_key
+        self.mask_key = mask_key
+        self.use_attention_tv_loss = use_attention_tv_loss
         self.use_linear_projection = use_linear_projection
         self.projection_type = "Linear" if use_linear_projection else "Conv2d"
 
@@ -312,15 +371,24 @@ class CrossAttentionBlock2d(Residual):
         )
         if XFORMERS_IS_AVAILBLE:
             for attention in self.layers(Attention):
+                ## TODO : if cross attention, use ltv loss
                 head_dimension = attention.embedding_dim // attention.num_heads
                 attention_product = attention.layer(
                     "ScaledDotProductAttention", ScaledDotProductAttention
                 )
                 num_heads = attention_product.num_heads
+                is_cross_attention = attention._get_name() == "Attention"
                 attention.remove(attention_product)
-                attention.insert(
-                    -2, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads)
-                )
+                if is_cross_attention:
+                    attention.insert(
+                        -2, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads)
+                    )
+                else:
+                    attention.layer(0, Parallel).insert(-1,UseContext(context="masks", key=self.mask_key))
+                    attention.layer(1,Distribute).insert(-1, Identity())
+                    attention.insert(
+                        -2, XformersScaledDotProductAttention(head_dimension=head_dimension,num_heads=num_heads, use_attention_tv_loss=self.use_attention_tv_loss)
+                    )
 
     def init_context(self) -> Contexts:
         return {"flatten": {"sizes": []}}

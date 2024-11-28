@@ -26,7 +26,7 @@ anydoor_config = AnydoorModelConfig(
     path_to_control_model="ckpt/refiners/controlnet.safetensors",
     path_to_object_encoder="ckpt/refiners/dinov2_encoder.safetensors",
     path_to_lda="ckpt/refiners/lda_new.safetensors",
-    lora_rank=32,
+    lora_rank=16,
     lora_scale=1.0,
     # lora_checkpoint="ckpt/lora/anydoor-vton-adaptation/lora_noname_0_1500.safetensors"
 )
@@ -34,7 +34,7 @@ wandb = WandbConfig(
     mode="online",
     project="anydoor-vton-adaptation",
     entity="daniel-rodriguezciotti-sicara",
-    name="kenzo",
+    name="pompeii",
 )
 
 evaluation = EvaluationConfig(
@@ -48,7 +48,8 @@ training_config = AnydoorTrainingConfig(
     test_dataset='dataset/test/cloth',
     test_lora_dataset_selection='dataset/lora_test_images.txt',
     batch_size=4,
-    loss_type='l2',
+    loss_type='mse',
+    use_atv_loss = True,
     # checkpoint_interval=500,
     saving_path='ckpt/lora',
     wandb=wandb,

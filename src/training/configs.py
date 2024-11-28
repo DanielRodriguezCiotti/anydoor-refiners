@@ -35,6 +35,7 @@ class AnydoorTrainingConfig(BaseConfig):
     anydoor : AnydoorModelConfig
     wandb : WandbConfig
     evaluation: EvaluationConfig
+    use_atv_loss : bool = False
     train_lora_dataset_selection : str | None = None
     test_lora_dataset_selection : str | None = None
 

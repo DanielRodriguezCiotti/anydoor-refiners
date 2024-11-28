@@ -4,6 +4,7 @@ from torch import Tensor, device as Device, dtype as DType
 
 import refiners.fluxion.layers as fl
 from refiners.fluxion.context import Contexts
+import torch
 from src.anydoor_refiners.attention import (
     CrossAttentionBlock2d,
 )
@@ -385,6 +386,7 @@ class ControlNet(fl.Chain):
             "diffusion": {"timestep": None},
             "range_adapter": {"timestep_embedding": None},
             "sampling": {"shapes": []},
+            "masks": {"tv_loss_mask": torch.tensor(0.0, device=self.device, dtype=self.dtype)},
         }
 
     def set_dinov2_object_embedding(self, dinov2_object_embedding: Tensor) -> None:
